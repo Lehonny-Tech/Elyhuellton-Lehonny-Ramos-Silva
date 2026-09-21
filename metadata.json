@@ -1,0 +1,10 @@
+{
+  "name": "ImobiRede - Portal & Gestão Imobiliária",
+  "description": "Plataforma multi-imobiliária para gestão de imóveis, busca avançada com mapa geolocalizado, agendamento de visitas online com controle de horários e favoritos de clientes.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
