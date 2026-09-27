@@ -57,6 +57,8 @@ import { SuperAdminTicketsTab } from './SuperAdminTicketsTab';
 
 interface AdminPanelProps {
   onViewProperty: (property: Property) => void;
+  openAuthModal?: () => void;
+  openSuperAdminLogin?: () => void;
 }
 
 const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB per file
@@ -148,8 +150,13 @@ const readFileAsOptimizedDataUrl = (file: File): Promise<string> => {
   });
 };
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({
+  onViewProperty,
+  openAuthModal,
+  openSuperAdminLogin,
+}) => {
   const {
+    currentUser,
     agencies,
     currentAgency,
     selectedAgencyId,
@@ -171,6 +178,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
     setIsSiteCreatorMode,
     getAgencyById,
   } = useApp();
+
+  const isSuperAdmin = Boolean(
+    currentUser &&
+    (currentUser.role === 'super_admin' ||
+      currentUser.role === 'site_creator' ||
+      currentUser.id === 'user-superadmin')
+  );
+  const isAgencyAdmin = currentUser?.role === 'agency_admin';
+  const effectiveAgencyId = (isAgencyAdmin && currentUser?.agencyId)
+    ? currentUser.agencyId
+    : selectedAgencyId;
 
   const [activeTab, setActiveTab] = useState<'properties' | 'new_property' | 'visits' | 'my_plan' | 'plans_management' | 'agencies' | 'featured_workflow' | 'users' | 'tickets' | 'agency_chat' | 'master_tickets'>('properties');
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
@@ -692,6 +710,76 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
     setImageUploadError('');
   };
 
+  if (!currentUser) {
+    return (
+      <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xl space-y-6 my-8 animate-fade-in">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto border border-emerald-200 shadow-inner">
+          <ShieldCheck className="w-8 h-8 text-emerald-700" />
+        </div>
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-700 border border-stone-300 uppercase tracking-wider">
+            Acesso Restrito
+          </span>
+          <h2 className="text-2xl font-bold text-stone-900 font-serif">
+            Painel da Imobiliária
+          </h2>
+          <p className="text-xs text-stone-600 leading-relaxed max-w-md mx-auto">
+            Esta área é exclusiva para imobiliárias credenciadas e administradores. Para gerenciar os imóveis, visualizar visitas e ajustar as configurações do seu plano contratado, realize o login.
+          </p>
+        </div>
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            type="button"
+            onClick={openAuthModal}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Fazer Login da Imobiliária</span>
+          </button>
+          <button
+            type="button"
+            onClick={openSuperAdminLogin}
+            className="px-5 py-3 bg-stone-900 hover:bg-stone-800 text-amber-400 border border-amber-500/40 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Crown className="w-4 h-4 text-amber-400" />
+            <span>Login Super Admin Master</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentUser.role === 'client') {
+    return (
+      <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xl space-y-6 my-8 animate-fade-in">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto border border-amber-200 shadow-inner">
+          <AlertCircle className="w-8 h-8 text-amber-700" />
+        </div>
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
+            Perfil de Cliente Conectado
+          </span>
+          <h2 className="text-2xl font-bold text-stone-900 font-serif">
+            Área de Gestão Imobiliária
+          </h2>
+          <p className="text-xs text-stone-600 leading-relaxed max-w-md mx-auto">
+            Você está conectado como <strong>{currentUser.name}</strong> ({currentUser.email}), com perfil de <strong>Cliente / Comprador</strong>. O cadastro de imóveis e as configurações de planos são reservados às imobiliárias credenciadas e administradores.
+          </p>
+        </div>
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            type="button"
+            onClick={openAuthModal}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Trocar de Conta / Entrar como Imobiliária</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Notice */}
@@ -771,74 +859,64 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
             </div>
           </div>
 
-          {/* Agency Switcher & Create Agency Button */}
+          {/* Agency Switcher (Super Admin) or Fixed Badge (Agency Admin) */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-1.5 text-xs">
-              <label className="block text-[10px] text-stone-400 font-semibold mb-0.5">
-                Imobiliária Ativa:
-              </label>
-              <select
-                value={selectedAgencyId || ''}
-                onChange={(e) => setSelectedAgencyId(e.target.value)}
-                className="bg-transparent text-white font-medium focus:outline-hidden cursor-pointer"
-              >
-                {agencies.map((ag) => {
-                  const agPlan = getAgencyPlan(ag);
-                  return (
-                    <option key={ag.id} value={ag.id} className="bg-stone-900 text-white">
-                      {ag.tradeName || ag.name} ({ag.city} - {PLAN_DETAILS[agPlan].badgeLabel})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+            {isSuperAdmin ? (
+              <>
+                <div className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-1.5 text-xs">
+                  <label className="block text-[10px] text-amber-400 font-semibold mb-0.5">
+                    Imobiliária em Foco (Master):
+                  </label>
+                  <select
+                    value={selectedAgencyId || ''}
+                    onChange={(e) => setSelectedAgencyId(e.target.value)}
+                    className="bg-transparent text-white font-medium focus:outline-hidden cursor-pointer"
+                  >
+                    {agencies.map((ag) => {
+                      const agPlan = getAgencyPlan(ag);
+                      return (
+                        <option key={ag.id} value={ag.id} className="bg-stone-900 text-white">
+                          {ag.tradeName || ag.name} ({ag.city} - {PLAN_DETAILS[agPlan].badgeLabel})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
 
-            <button
-              onClick={() => setActiveTab('agencies')}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Nova Imobiliária
-            </button>
+                <button
+                  onClick={() => setActiveTab('agencies')}
+                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Nova Imobiliária
+                </button>
+              </>
+            ) : (
+              <div className="bg-stone-800/90 border border-stone-700 rounded-xl px-3.5 py-2 text-xs flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-400" />
+                <div>
+                  <div className="text-[10px] text-stone-400 font-semibold uppercase">Sua Imobiliária</div>
+                  <div className="font-bold text-white text-xs">{currentAgency?.tradeName || currentAgency?.name}</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Site Creator Super-Admin Strip */}
-        <div className="pt-3 border-t border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-stone-400">Modo de Operação:</span>
-            <div className="inline-flex rounded-xl bg-stone-800 p-0.5 border border-stone-700">
-              <button
-                type="button"
-                onClick={() => setIsSiteCreatorMode(false)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  !isSiteCreatorMode
-                    ? 'bg-emerald-600 text-white shadow-2xs'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                🏢 Gestor Imobiliária ({currentAgency?.tradeName || currentAgency?.name})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSiteCreatorMode(true);
-                  setActiveTab('plans_management');
-                }}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                  isSiteCreatorMode
-                    ? 'bg-amber-500 text-stone-950 font-bold shadow-2xs'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
+        {/* Super-Admin Status Strip (Only visible to authenticated Super Admin) */}
+        {isSuperAdmin && (
+          <div className="pt-3 border-t border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500 text-stone-950 font-bold">
                 <Crown className="w-3.5 h-3.5" />
-                👑 Super Administrador (Master)
-              </button>
+                Painel Master Ativo
+              </span>
+              <span className="text-stone-300 text-xs">
+                Controle irrestrito de dados e configurações da plataforma.
+              </span>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {isSiteCreatorMode && (
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setActiveTab('plans_management')}
                 className="bg-amber-500 hover:bg-amber-600 text-stone-950 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition shadow-xs"
@@ -846,24 +924,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
                 <Crown className="w-3.5 h-3.5 text-stone-950" />
                 <span>Gestão de Planos Master</span>
               </button>
-            )}
 
-            {pendingFeaturedRequests.length > 0 ? (
-              <button
-                onClick={() => setActiveTab('featured_workflow')}
-                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition"
-              >
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>{pendingFeaturedRequests.length} solicitações de destaque</span>
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              </button>
-            ) : (
-              <span className="text-stone-400 text-[11px]">
-                Todas as solicitações de destaque estão em dia.
-              </span>
-            )}
+              {pendingFeaturedRequests.length > 0 ? (
+                <button
+                  onClick={() => setActiveTab('featured_workflow')}
+                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{pendingFeaturedRequests.length} solicitações de destaque</span>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                </button>
+              ) : (
+                <span className="text-stone-400 text-[11px]">
+                  Todas as solicitações de destaque estão em dia.
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Admin Tabs */}
@@ -925,33 +1003,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
         </button>
 
         {/* Master Admin Plan Management Tab */}
-        <button
-          onClick={() => setActiveTab('plans_management')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'plans_management'
-              ? 'border-amber-500 text-amber-900 bg-amber-50/80 font-bold'
-              : 'border-transparent text-stone-600 hover:text-stone-900'
-          }`}
-        >
-          <Crown className="w-4 h-4 text-amber-500" />
-          <span>Gestão de Planos (Master)</span>
-          <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-black border border-amber-300">
-            {agencies.length}
-          </span>
-        </button>
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('plans_management')}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              activeTab === 'plans_management'
+                ? 'border-amber-500 text-amber-900 bg-amber-50/80 font-bold'
+                : 'border-transparent text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Crown className="w-4 h-4 text-amber-500" />
+            <span>Gestão de Planos (Master)</span>
+            <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-black border border-amber-300">
+              {agencies.length}
+            </span>
+          </button>
+        )}
 
         {/* Master Admin Users & Passwords Tab */}
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'users'
-              ? 'border-amber-500 text-amber-950 bg-amber-100/90 font-black'
-              : 'border-transparent text-amber-800 hover:text-amber-950 hover:bg-amber-50/50'
-          }`}
-        >
-          <KeyRound className="w-4 h-4 text-amber-600" />
-          <span>Usuários & Senhas Master</span>
-        </button>
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              activeTab === 'users'
+                ? 'border-amber-500 text-amber-950 bg-amber-100/90 font-black'
+                : 'border-transparent text-amber-800 hover:text-amber-950 hover:bg-amber-50/50'
+            }`}
+          >
+            <KeyRound className="w-4 h-4 text-amber-600" />
+            <span>Usuários & Senhas Master</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('agencies')}
@@ -965,22 +1047,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
           Imobiliárias da Rede ({agencies.length})
         </button>
 
-        <button
-          onClick={() => setActiveTab('featured_workflow')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'featured_workflow'
-              ? 'border-amber-500 text-amber-800 bg-amber-50/70 font-bold'
-              : 'border-transparent text-stone-600 hover:text-stone-900'
-          }`}
-        >
-          <Crown className="w-4 h-4 text-amber-500" />
-          <span>Central de Destaques (Super Administrador Master)</span>
-          {pendingFeaturedRequests.length > 0 && (
-            <span className="bg-amber-500 text-stone-950 font-black text-[10px] px-2 py-0.5 rounded-full">
-              {pendingFeaturedRequests.length}
-            </span>
-          )}
-        </button>
+        {/* Master Central de Destaques Tab */}
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('featured_workflow')}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              activeTab === 'featured_workflow'
+                ? 'border-amber-500 text-amber-800 bg-amber-50/70 font-bold'
+                : 'border-transparent text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Crown className="w-4 h-4 text-amber-500" />
+            <span>Central de Destaques (Super Administrador Master)</span>
+            {pendingFeaturedRequests.length > 0 && (
+              <span className="bg-amber-500 text-stone-950 font-black text-[10px] px-2 py-0.5 rounded-full">
+                {pendingFeaturedRequests.length}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Agency Support Tickets & Repair Request Tab */}
         <button
@@ -1009,7 +1094,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
         </button>
 
         {/* Master Site Admin Ticket Desk */}
-        {isSiteCreatorMode && (
+        {isSuperAdmin && (
           <button
             onClick={() => setActiveTab('master_tickets')}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
@@ -2545,8 +2630,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
         />
       )}
 
-      {/* TAB: GESTÃO MASTER DE PLANOS (CRIADOR DO SITE) */}
-      {activeTab === 'plans_management' && (
+      {/* TAB: GESTÃO MASTER DE PLANOS (SUPER ADMIN) */}
+      {activeTab === 'plans_management' && isSuperAdmin && (
         <MasterPlanManagementTab
           agencies={agencies}
           properties={properties}
@@ -2562,7 +2647,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
       )}
 
       {/* TAB: GESTÃO DE USUÁRIOS & SENHAS MASTER */}
-      {activeTab === 'users' && (
+      {activeTab === 'users' && isSuperAdmin && (
         <SuperAdminUsersManagementTab agencies={agencies} />
       )}
 
@@ -2577,7 +2662,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
       )}
 
       {/* TAB: RECEPÇÃO DE CHAMADOS MASTER (SITE ADMINISTRATORS) */}
-      {activeTab === 'master_tickets' && (
+      {activeTab === 'master_tickets' && isSuperAdmin && (
         <SuperAdminTicketsTab agencies={agencies} />
       )}
 
@@ -2891,8 +2976,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
         </div>
       )}
 
-      {/* TAB 5: CENTRAL DE DESTAQUES (CRIADOR DO SITE) */}
-      {activeTab === 'featured_workflow' && (
+      {/* TAB 5: CENTRAL DE DESTAQUES (SUPER ADMIN) */}
+      {activeTab === 'featured_workflow' && isSuperAdmin && (
         <div className="space-y-6">
           {/* Header Card */}
           <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-amber-950 text-white p-6 rounded-2xl border border-amber-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">

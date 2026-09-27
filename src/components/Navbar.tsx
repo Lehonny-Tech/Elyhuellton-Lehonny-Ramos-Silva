@@ -37,11 +37,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [agencyDropdownOpen, setAgencyDropdownOpen] = useState(false);
 
   const favoritesCount = currentUser?.favorites?.length || 0;
-  const isSuperAdmin =
-    currentUser?.role === 'super_admin' ||
-    currentUser?.role === 'site_creator' ||
-    currentUser?.id === 'user-superadmin' ||
-    isSiteCreatorMode;
+  const isSuperAdmin = Boolean(
+    currentUser &&
+    (currentUser.role === 'super_admin' ||
+      currentUser.role === 'site_creator' ||
+      currentUser.id === 'user-superadmin')
+  );
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -73,50 +74,65 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>{isSuperAdmin ? '👑 Painel Master' : 'Login Super Admin'}</span>
           </button>
 
-          {/* Agency quick selector for demo / multi-imobiliária management */}
-          <div className="relative">
-            <button
-              id="agency-selector-top"
-              onClick={() => setAgencyDropdownOpen(!agencyDropdownOpen)}
-              className="text-stone-300 hover:text-white flex items-center gap-1.5 transition text-xs font-medium cursor-pointer"
-              title="Alternar entre imobiliárias para gerenciar"
-            >
+          {/* Agency indicator for agency_admin or switcher for super_admin */}
+          {currentUser?.role === 'agency_admin' ? (
+            <div className="flex items-center gap-1.5 text-xs text-stone-300">
               <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="truncate max-w-[130px] sm:max-w-[180px]">
-                {currentAgency ? currentAgency.tradeName : 'Selecionar Imobiliária'}
+              <span className="font-semibold text-white truncate max-w-[140px] sm:max-w-[200px]">
+                {currentAgency ? currentAgency.tradeName : ''}
               </span>
               <span className="text-[10px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
                 CRECI {currentAgency?.creci}
               </span>
-            </button>
+              <span className="text-[10px] text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/80 font-bold uppercase">
+                {currentAgency?.plano}
+              </span>
+            </div>
+          ) : isSuperAdmin ? (
+            <div className="relative">
+              <button
+                id="agency-selector-top"
+                onClick={() => setAgencyDropdownOpen(!agencyDropdownOpen)}
+                className="text-stone-300 hover:text-white flex items-center gap-1.5 transition text-xs font-medium cursor-pointer"
+                title="Super Admin: Selecionar imobiliária para gerenciar"
+              >
+                <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                <span className="truncate max-w-[130px] sm:max-w-[180px]">
+                  {currentAgency ? currentAgency.tradeName : 'Selecionar Imobiliária'}
+                </span>
+                <span className="text-[10px] text-amber-400 bg-amber-950 px-1.5 py-0.5 rounded border border-amber-800">
+                  CRECI {currentAgency?.creci}
+                </span>
+              </button>
 
-            {agencyDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-stone-900 border border-stone-700 rounded-lg shadow-xl p-2 z-50 text-xs">
-                <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider px-2 py-1">
-                  Alternar Imobiliária Ativa
+              {agencyDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-stone-900 border border-stone-700 rounded-lg shadow-xl p-2 z-50 text-xs">
+                  <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider px-2 py-1">
+                    Selecionar Imobiliária (Master)
+                  </div>
+                  {agencies.map((ag) => (
+                    <button
+                      key={ag.id}
+                      onClick={() => {
+                        setSelectedAgencyId(ag.id);
+                        setAgencyDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-2 rounded flex flex-col gap-0.5 transition cursor-pointer ${
+                        currentAgency?.id === ag.id
+                          ? 'bg-emerald-700 text-white'
+                          : 'hover:bg-stone-800 text-stone-200'
+                      }`}
+                    >
+                      <span className="font-semibold text-xs">{ag.name}</span>
+                      <span className="text-[10px] opacity-80">
+                        {ag.city}, {ag.state} • CRECI {ag.creci} • Plano {ag.plano}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-                {agencies.map((ag) => (
-                  <button
-                    key={ag.id}
-                    onClick={() => {
-                      setSelectedAgencyId(ag.id);
-                      setAgencyDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-2 rounded flex flex-col gap-0.5 transition cursor-pointer ${
-                      currentAgency?.id === ag.id
-                        ? 'bg-emerald-700 text-white'
-                        : 'hover:bg-stone-800 text-stone-200'
-                    }`}
-                  >
-                    <span className="font-semibold text-xs">{ag.name}</span>
-                    <span className="text-[10px] opacity-80">
-                      {ag.city}, {ag.state} • CRECI {ag.creci}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -383,7 +383,7 @@ export const MortgageSimulator: React.FC<MortgageSimulatorProps> = ({
                 </span>
               </div>
               <p className="text-xs text-amber-900 mt-1 leading-relaxed">
-                A imobiliária <strong>{agency.tradeName || agency.name}</strong> está vinculada ao <strong>Plano Essencial</strong>, que não contempla o Simulador Imobiliário com taxas e prazos customizados. O simulador está exibindo projeções no modo de demonstração. Faça upgrade para o <strong>Plano Profissional</strong> para ativar a integração completa.
+                A imobiliária <strong>{agency.tradeName || agency.name}</strong> está vinculada ao <strong>Plano Essencial</strong>, que não contempla o Simulador Imobiliário com taxas e prazos customizados. Faça upgrade para o <strong>Plano Profissional</strong> para ativar a integração completa de simulações com tabelas SAC e Price.
               </p>
             </div>
           </div>

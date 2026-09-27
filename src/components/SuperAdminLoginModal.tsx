@@ -15,7 +15,7 @@ export const SuperAdminLoginModal: React.FC<SuperAdminLoginModalProps> = ({
 }) => {
   const { loginSuperAdmin, users } = useApp();
   const [email, setEmail] = useState('superadmin@imobirede.com.br');
-  const [password, setPassword] = useState('superadmin123');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -41,20 +41,6 @@ export const SuperAdminLoginModal: React.FC<SuperAdminLoginModalProps> = ({
       }, 700);
     } else {
       setError('Senha ou e-mail de Super Administrador incorretos. Verifique suas credenciais.');
-    }
-  };
-
-  const handleQuickMasterLogin = () => {
-    setEmail('superadmin@imobirede.com.br');
-    setPassword('superadmin123');
-    const ok = loginSuperAdmin('superadmin123', 'superadmin@imobirede.com.br');
-    if (ok) {
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        onLoginSuccess();
-        onClose();
-      }, 600);
     }
   };
 
@@ -180,18 +166,6 @@ export const SuperAdminLoginModal: React.FC<SuperAdminLoginModalProps> = ({
             <span>Entrar no Painel Master</span>
             <ArrowRight className="w-4 h-4 text-stone-950" />
           </button>
-
-          {/* Quick Demo Access */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleQuickMasterLogin}
-              className="w-full py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <Crown className="w-3.5 h-3.5 text-amber-400" />
-              <span>Acesso Rápido com 1-Clique (Modo Teste)</span>
-            </button>
-          </div>
         </form>
       </div>
     </div>

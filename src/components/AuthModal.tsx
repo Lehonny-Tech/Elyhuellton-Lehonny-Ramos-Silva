@@ -76,24 +76,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleQuickLogin = (demoEmail: string, demoPass?: string) => {
-    loginUser(demoEmail);
-    onClose();
-  };
-
-  const handleQuickSuperAdmin = () => {
-    setEmail('superadmin@imobirede.com.br');
-    setPassword('superadmin123');
-    const ok = loginSuperAdmin('superadmin123', 'superadmin@imobirede.com.br');
-    if (ok) {
-      setSuccessMsg('Autenticado como Super Administrador!');
-      setTimeout(() => {
-        if (onSuperAdminSuccess) onSuperAdminSuccess();
-        onClose();
-      }, 500);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden flex flex-col my-auto">
@@ -294,50 +276,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {mode === 'login' ? 'Entrar na Plataforma' : 'Criar Conta e Começar'}
             </button>
           )}
-
-          {/* Demo Accounts shortcuts */}
-          <div className="pt-3 border-t border-stone-200 space-y-2">
-            <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider block text-center">
-              Acesso Rápido de Demonstração
-            </span>
-
-            {mode === 'superadmin' ? (
-              <button
-                type="button"
-                onClick={handleQuickSuperAdmin}
-                className="w-full p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 text-left transition cursor-pointer flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div className="font-bold flex items-center gap-1">
-                    <Crown className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Acesso Imediato Super Admin (1-Clique)</span>
-                  </div>
-                  <div className="text-[10px] text-amber-700 font-mono">superadmin@imobirede.com.br • superadmin123</div>
-                </div>
-                <KeyRound className="w-4 h-4 text-amber-600" />
-              </button>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('mariana@email.com')}
-                  className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-left transition cursor-pointer"
-                >
-                  <div className="font-bold">Cliente Demonstração</div>
-                  <div className="text-[10px] text-stone-500 truncate font-mono">mariana@email.com</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('admin@verticeprime.com.br')}
-                  className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-left transition cursor-pointer"
-                >
-                  <div className="font-bold">Admin Vértice Imóveis</div>
-                  <div className="text-[10px] text-emerald-700 truncate font-mono">CRECI 49201-J</div>
-                </button>
-              </div>
-            )}
-          </div>
         </form>
       </div>
     </div>

@@ -136,6 +136,8 @@ function MainAppContent() {
         {currentTab === 'admin' && (
           <AdminPanel
             onViewProperty={(prop) => setSelectedPropertyForDetail(prop)}
+            openAuthModal={() => setAuthModalOpen(true)}
+            openSuperAdminLogin={() => setSuperAdminLoginOpen(true)}
           />
         )}
 
@@ -143,6 +145,7 @@ function MainAppContent() {
           <SuperAdminPanel
             onViewProperty={(prop) => setSelectedPropertyForDetail(prop)}
             onSelectTab={setCurrentTab}
+            openSuperAdminLogin={() => setSuperAdminLoginOpen(true)}
           />
         )}
       </main>

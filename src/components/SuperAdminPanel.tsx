@@ -44,11 +44,13 @@ import { InterAgencyChatTab } from './InterAgencyChatTab';
 interface SuperAdminPanelProps {
   onViewProperty: (property: Property) => void;
   onSelectTab?: (tab: 'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin') => void;
+  openSuperAdminLogin?: () => void;
 }
 
 export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
   onViewProperty,
   onSelectTab,
+  openSuperAdminLogin,
 }) => {
   const {
     currentUser,
@@ -286,6 +288,52 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       triggerToast(`Imóvel ${prop.code} excluído com sucesso.`);
     }
   };
+
+  const isSuperAdmin = Boolean(
+    currentUser &&
+    (currentUser.role === 'super_admin' ||
+      currentUser.role === 'site_creator' ||
+      currentUser.id === 'user-superadmin')
+  );
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="bg-stone-900 border-2 border-amber-500/40 rounded-3xl p-8 sm:p-14 text-center max-w-xl mx-auto shadow-2xl space-y-6 my-8 animate-fade-in text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/40 shadow-inner">
+          <Crown className="w-8 h-8 text-amber-400" />
+        </div>
+        <div className="space-y-2 relative z-10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider">
+            Acesso Restrito ao Painel Master
+          </span>
+          <h2 className="text-2xl font-bold font-serif text-white">
+            Super Administrador (Master)
+          </h2>
+          <p className="text-xs text-stone-300 leading-relaxed max-w-md mx-auto">
+            Esta área é de acesso restrito ao Super Administrador Master para gerenciamento irrestrito de usuários, senhas, planos de assinatura, chamados e moderação de destaques.
+          </p>
+        </div>
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center relative z-10">
+          <button
+            type="button"
+            onClick={openSuperAdminLogin}
+            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-stone-950 rounded-xl text-xs font-bold shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Crown className="w-4 h-4 text-stone-950" />
+            <span>Fazer Login como Super Administrador</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectTab?.('home')}
+            className="px-5 py-3 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl text-xs font-semibold transition cursor-pointer"
+          >
+            Voltar ao Início
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

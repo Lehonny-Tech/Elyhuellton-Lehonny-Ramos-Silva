@@ -211,16 +211,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.id === 'user-site-creator' || parsed.email?.toLowerCase() === 'criador@imobirede.com.br') {
-          return INITIAL_USERS[0];
+          return null;
         }
         if (parsed.role === 'site_creator' || parsed.id === 'user-superadmin') {
           return { ...parsed, role: 'super_admin' as const, name: 'Super Administrador (Master)', email: 'superadmin@imobirede.com.br' };
         }
         return parsed;
       }
-      return INITIAL_USERS[0];
+      return null;
     } catch {
-      return INITIAL_USERS[0];
+      return null;
     }
   });
 
@@ -241,10 +241,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const isSuperAdmin = Boolean(
-    isSiteCreatorMode ||
-    currentUser?.role === 'super_admin' ||
-    currentUser?.role === 'site_creator' ||
-    currentUser?.id === 'user-superadmin'
+    currentUser &&
+    (currentUser.role === 'super_admin' ||
+      currentUser.role === 'site_creator' ||
+      currentUser.id === 'user-superadmin')
   );
 
   const [tickets, setTickets] = useState<SupportTicket[]>(() => {
@@ -310,7 +310,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem(STORAGE_KEYS.SITE_CREATOR_MODE, String(isSiteCreatorMode));
   }, [isSiteCreatorMode]);
 
-  const currentAgency = agencies.find((a) => a.id === selectedAgencyId) || agencies[0] || null;
+  const currentAgency =
+    currentUser?.role === 'agency_admin' && currentUser?.agencyId
+      ? agencies.find((a) => a.id === currentUser.agencyId) ||
+        agencies.find((a) => a.id === selectedAgencyId) ||
+        agencies[0] ||
+        null
+      : agencies.find((a) => a.id === selectedAgencyId) || agencies[0] || null;
 
   const getAgencyById = (agencyId: string) => {
     return agencies.find((a) => a.id === agencyId);
@@ -565,13 +571,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, error: 'Usuário não encontrado. Verifique seu e-mail.' };
     }
 
-    if (password && user.password && user.password !== password) {
+    if (!password || password.trim().length === 0) {
+      return { success: false, error: 'Por favor, informe a sua senha para entrar.' };
+    }
+
+    if (user.password && user.password !== password) {
       return { success: false, error: 'Senha incorreta. Verifique e tente novamente.' };
     }
 
     setCurrentUser(user);
     if (user.role === 'super_admin' || user.role === 'site_creator' || user.id === 'user-superadmin') {
       setIsSiteCreatorMode(true);
+    } else {
+      setIsSiteCreatorMode(false);
     }
     if (user.agencyId) {
       setSelectedAgencyId(user.agencyId);
@@ -580,6 +592,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const loginSuperAdmin = (password: string, email = 'superadmin@imobirede.com.br'): boolean => {
+    if (!password || password.trim().length === 0) return false;
     const normalizedEmail = email.toLowerCase().trim();
     // Allow master login strictly for Super Administrador (Master)
     const admin = users.find(
@@ -794,7 +807,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUsers(INITIAL_USERS);
     setTickets(INITIAL_TICKETS);
     setAgencyChatMessages(INITIAL_AGENCY_CHAT);
-    setCurrentUser(INITIAL_USERS[0]);
+    setCurrentUser(null);
     setSelectedAgencyId('ag-vertice');
     setIsSiteCreatorMode(false);
     localStorage.clear();
