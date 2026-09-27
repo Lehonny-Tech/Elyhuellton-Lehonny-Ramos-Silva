@@ -35,7 +35,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'client' | 'agency_admin' | 'site_creator'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'client' | 'agency_admin' | 'super_admin'>('all');
 
   // Change Password Modal State
   const [passwordModalUser, setPasswordModalUser] = useState<User | null>(null);
@@ -48,7 +48,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
-  const [editRole, setEditRole] = useState<'client' | 'agency_admin' | 'site_creator'>('client');
+  const [editRole, setEditRole] = useState<'client' | 'agency_admin' | 'super_admin' | 'site_creator'>('client');
   const [editAgencyId, setEditAgencyId] = useState<string>('');
   const [editStatus, setEditStatus] = useState<'active' | 'suspended'>('active');
 
@@ -58,7 +58,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
   const [createEmail, setCreateEmail] = useState('');
   const [createPhone, setCreatePhone] = useState('');
   const [createPassword, setCreatePassword] = useState('imobi123');
-  const [createRole, setCreateRole] = useState<'client' | 'agency_admin' | 'site_creator'>('client');
+  const [createRole, setCreateRole] = useState<'client' | 'agency_admin' | 'super_admin' | 'site_creator'>('client');
   const [createAgencyId, setCreateAgencyId] = useState<string>(agencies[0]?.id || '');
 
   // Visible Passwords map (for super admin auditing on table)
@@ -86,14 +86,19 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.phone && u.phone.includes(searchQuery));
 
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchesRole =
+      roleFilter === 'all'
+        ? true
+        : roleFilter === 'super_admin'
+        ? u.role === 'super_admin' || u.role === 'site_creator' || u.id === 'user-superadmin'
+        : u.role === roleFilter;
 
     return matchesSearch && matchesRole;
   });
 
   const clientsCount = users.filter((u) => u.role === 'client').length;
   const agencyAdminsCount = users.filter((u) => u.role === 'agency_admin').length;
-  const superAdminsCount = users.filter((u) => u.role === 'site_creator').length;
+  const superAdminsCount = users.filter((u) => u.role === 'super_admin' || u.role === 'site_creator' || u.id === 'user-superadmin').length;
 
   // Handlers
   const openPasswordModal = (user: User) => {
@@ -337,9 +342,9 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
             👤 Clientes ({clientsCount})
           </button>
           <button
-            onClick={() => setRoleFilter('site_creator')}
+            onClick={() => setRoleFilter('super_admin')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-              roleFilter === 'site_creator'
+              roleFilter === 'super_admin'
                 ? 'bg-amber-500 text-stone-950 font-bold'
                 : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             }`}
@@ -375,7 +380,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                 filteredUsers.map((user) => {
                   const associatedAgency = user.agencyId ? agencies.find((a) => a.id === user.agencyId) : null;
                   const isVisiblePassword = visiblePasswordIds[user.id];
-                  const isMasterSuperAdmin = user.role === 'site_creator';
+                  const isMasterSuperAdmin = user.role === 'super_admin' || user.role === 'site_creator' || user.id === 'user-superadmin';
 
                   return (
                     <tr
@@ -389,14 +394,14 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                              user.role === 'site_creator'
+                              isMasterSuperAdmin
                                 ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                 : user.role === 'agency_admin'
                                 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                                 : 'bg-stone-100 text-stone-700 border border-stone-200'
                             }`}
                           >
-                            {user.role === 'site_creator' ? (
+                            {isMasterSuperAdmin ? (
                               <Crown className="w-4 h-4 text-amber-700" />
                             ) : user.role === 'agency_admin' ? (
                               <Building2 className="w-4 h-4 text-emerald-700" />
@@ -423,10 +428,10 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
 
                       {/* Role Badge */}
                       <td className="py-3.5 px-4">
-                        {user.role === 'site_creator' ? (
+                        {isMasterSuperAdmin ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                             <Crown className="w-3 h-3 text-amber-700" />
-                            Super Administrador
+                            Super Administrador (Master)
                           </span>
                         ) : user.role === 'agency_admin' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
@@ -598,8 +603,8 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                 <div className="text-[11px] text-stone-500 pt-1">
                   Perfil:{' '}
                   <strong className="text-stone-800">
-                    {passwordModalUser.role === 'site_creator'
-                      ? 'Super Administrador'
+                    {passwordModalUser.role === 'super_admin' || passwordModalUser.role === 'site_creator' || passwordModalUser.id === 'user-superadmin'
+                      ? 'Super Administrador (Master)'
                       : passwordModalUser.role === 'agency_admin'
                       ? 'Imobiliária / Corretor'
                       : 'Cliente Final'}
@@ -765,7 +770,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                   >
                     <option value="client">Cliente Final</option>
                     <option value="agency_admin">Administrador de Imobiliária</option>
-                    <option value="site_creator">Super Administrador (Master)</option>
+                    <option value="super_admin">Super Administrador (Master)</option>
                   </select>
                 </div>
 
@@ -912,7 +917,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                   >
                     <option value="client">Cliente Final</option>
                     <option value="agency_admin">Administrador de Imobiliária</option>
-                    <option value="site_creator">Super Administrador (Master)</option>
+                    <option value="super_admin">Super Administrador (Master)</option>
                   </select>
                 </div>
 

@@ -26,6 +26,10 @@ import {
   LogOut,
   LifeBuoy,
   Handshake,
+  Star,
+  Clock,
+  Check,
+  MapPin,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Property, Agency, VisitAppointment, PlanType, SubscriptionStatus } from '../types';
@@ -56,6 +60,9 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     updateProperty,
     deleteProperty,
     togglePropertyFeature,
+    approvePropertyFeature,
+    rejectPropertyFeature,
+    getAgencyById,
     updateAgency,
     deleteAgency,
     addAgency,
@@ -65,7 +72,10 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     resetToDefaults,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'tickets' | 'agencies' | 'properties' | 'plans' | 'visits' | 'agency_chat' | 'overview'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tickets' | 'featured' | 'agencies' | 'properties' | 'plans' | 'visits' | 'agency_chat' | 'overview'>('users');
+
+  const pendingFeaturedRequests = properties.filter((p) => p.featuredRequestStatus === 'pending');
+  const activeFeaturedProperties = properties.filter((p) => p.featured);
 
   // Master Plan Modal State
   const [selectedPlanAgency, setSelectedPlanAgency] = useState<Agency | null>(null);
@@ -414,6 +424,24 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
           )}
         </button>
 
+        {/* Curadoria & Destaques Master */}
+        <button
+          onClick={() => setActiveTab('featured')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'featured'
+              ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+          <span>Destaques & Curadoria ({activeFeaturedProperties.length})</span>
+          {pendingFeaturedRequests.length > 0 && (
+            <span className="bg-amber-400 text-stone-950 text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
+              {pendingFeaturedRequests.length} pendentes
+            </span>
+          )}
+        </button>
+
         <button
           onClick={() => setActiveTab('agencies')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
@@ -495,6 +523,209 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       {/* TAB CONTENT: CENTRAL DE CHAMADOS DE SUPORTE */}
       {activeTab === 'tickets' && (
         <SuperAdminTicketsTab agencies={agencies} />
+      )}
+
+      {/* TAB CONTENT: CURADORIA & DESTAQUES MASTER */}
+      {activeTab === 'featured' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold uppercase tracking-wider mb-1">
+                <Crown className="w-3.5 h-3.5 text-amber-700" />
+                Painel do Super Administrador (Master) • Curadoria
+              </div>
+              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+                <span>Avaliação e Curadoria de Imóveis em Destaque</span>
+              </h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Avalie solicitações de destaque enviadas pelas imobiliárias parceiras e promova imóveis para a vitrine principal.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="bg-amber-50 border border-amber-300 rounded-xl px-3.5 py-2 text-center">
+                <div className="text-xl font-black text-amber-900">{pendingFeaturedRequests.length}</div>
+                <div className="text-[10px] text-amber-700 font-semibold uppercase">Solicitações Pendentes</div>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-3.5 py-2 text-center">
+                <div className="text-xl font-black text-emerald-900">{activeFeaturedProperties.length}</div>
+                <div className="text-[10px] text-emerald-700 font-semibold uppercase">Destaques no Ar</div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION: SOLICITAÇÕES PENDENTES */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-200 pb-3">
+              <Clock className="w-4 h-4 text-amber-600" />
+              <span>Solicitações Pendentes de Avaliação ({pendingFeaturedRequests.length})</span>
+            </h3>
+
+            {pendingFeaturedRequests.length === 0 ? (
+              <div className="py-10 text-center text-stone-500 text-xs bg-stone-50 rounded-xl border border-dashed border-stone-200">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                Nenhuma solicitação pendente no momento. Todas as requisições estão avaliadas!
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingFeaturedRequests.map((prop) => {
+                  const propAgency = getAgencyById(prop.agencyId);
+                  return (
+                    <div
+                      key={prop.id}
+                      className="border border-amber-300 bg-amber-50/40 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-2xs hover:shadow-xs transition"
+                    >
+                      <div className="flex gap-3">
+                        <img
+                          src={prop.images[0]}
+                          alt={prop.title}
+                          className="w-24 h-24 object-cover rounded-lg shrink-0 border border-stone-200"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase">
+                              Solicitação de Destaque
+                            </span>
+                            <span className="text-[10px] font-mono text-stone-500">{prop.code}</span>
+                          </div>
+                          <h4 className="font-bold text-xs text-stone-900 line-clamp-1">{prop.title}</h4>
+                          <div className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-stone-400" />
+                            {prop.location.neighborhood}, {prop.location.city} - {prop.location.state}
+                          </div>
+
+                          <div className="mt-1.5 flex items-center gap-2">
+                            {prop.rentPrice && (
+                              <span className="text-xs font-bold text-stone-900">
+                                {formatCurrency(prop.rentPrice)}/mês
+                              </span>
+                            )}
+                            {prop.salePrice && (
+                              <span className="text-xs font-bold text-emerald-700">
+                                Venda: {formatCurrency(prop.salePrice)}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center gap-2 text-[11px] text-stone-600">
+                            {propAgency?.logoUrl && (
+                              <img src={propAgency.logoUrl} alt={propAgency.name} className="w-4 h-4 rounded object-cover" />
+                            )}
+                            <span className="font-medium text-stone-800">{propAgency?.tradeName || propAgency?.name}</span>
+                            <span className="text-stone-400">• CRECI {propAgency?.creci}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {prop.featuredRequestNotes && (
+                        <div className="bg-white p-2.5 rounded-lg border border-amber-200 text-[11px] text-stone-700">
+                          <strong className="text-amber-900 block mb-0.5">Justificativa da Imobiliária:</strong>
+                          "{prop.featuredRequestNotes}"
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            approvePropertyFeature(prop.id);
+                            triggerToast(`Imóvel "${prop.title}" aceito e promovido a destaque com sucesso!`);
+                          }}
+                          className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Check className="w-4 h-4" />
+                          Avaliar e Aceitar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            rejectPropertyFeature(prop.id);
+                            triggerToast(`Solicitação de destaque recusada para "${prop.title}".`);
+                          }}
+                          className="py-2 px-3 bg-stone-100 hover:bg-rose-50 text-stone-600 hover:text-rose-700 border border-stone-200 rounded-lg text-xs font-semibold transition cursor-pointer"
+                        >
+                          Recusar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onViewProperty(prop)}
+                          className="p-2 text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer"
+                          title="Visualizar imóvel completo"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* SECTION: IMÓVEIS ATUALMENTE EM DESTAQUE */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-200 pb-3">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span>Imóveis em Destaque na Página Inicial ({activeFeaturedProperties.length})</span>
+            </h3>
+
+            {activeFeaturedProperties.length === 0 ? (
+              <div className="py-8 text-center text-stone-400 text-xs">
+                Nenhum imóvel em destaque no momento.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeFeaturedProperties.map((p) => {
+                  const ag = agencies.find((a) => a.id === p.agencyId);
+                  return (
+                    <div
+                      key={p.id}
+                      className="border border-amber-200 bg-stone-50/50 rounded-xl p-3.5 flex flex-col justify-between gap-3"
+                    >
+                      <div className="flex gap-3">
+                        <img
+                          src={p.images[0]}
+                          alt={p.title}
+                          className="w-16 h-16 rounded-lg object-cover border border-stone-200 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-xs text-stone-900 line-clamp-1">{p.title}</h4>
+                          <div className="text-[11px] text-stone-500 truncate">{p.location.neighborhood}, {p.location.city}</div>
+                          <div className="text-emerald-700 font-bold text-xs mt-1">
+                            {p.rentPrice ? formatCurrency(p.rentPrice) + '/mês' : p.salePrice ? formatCurrency(p.salePrice) : ''}
+                          </div>
+                          <div className="text-[10px] text-stone-400 mt-0.5 truncate">{ag?.tradeName || ag?.name}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-stone-200 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            togglePropertyFeature(p.id);
+                            triggerToast(`Destaque do imóvel "${p.title}" alterado.`);
+                          }}
+                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                        >
+                          Remover Destaque
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onViewProperty(p)}
+                          className="p-1.5 text-stone-500 hover:text-stone-900 bg-white border border-stone-200 rounded-lg cursor-pointer"
+                          title="Ver detalhes"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* TAB CONTENT: CHAT DA REDE B2B */}

@@ -526,7 +526,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
     e.preventDefault();
     if (!requestingFeatureProperty) return;
     requestPropertyFeature(requestingFeatureProperty.id, featureRequestNotes.trim());
-    setSuccessNotice(`Solicitação de destaque do imóvel "${requestingFeatureProperty.title}" enviada ao Criador do Site para avaliação!`);
+    setSuccessNotice(`Solicitação de destaque do imóvel "${requestingFeatureProperty.title}" enviada ao Super Administrador (Master) para avaliação!`);
     setTimeout(() => setSuccessNotice(''), 4500);
     setRequestingFeatureProperty(null);
   };
@@ -832,7 +832,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
                 }`}
               >
                 <Crown className="w-3.5 h-3.5" />
-                👑 Criador do Site (Super Admin)
+                👑 Super Administrador (Master)
               </button>
             </div>
           </div>
@@ -974,7 +974,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
           }`}
         >
           <Crown className="w-4 h-4 text-amber-500" />
-          <span>Central de Destaques (Criador do Site)</span>
+          <span>Central de Destaques (Super Administrador Master)</span>
           {pendingFeaturedRequests.length > 0 && (
             <span className="bg-amber-500 text-stone-950 font-black text-[10px] px-2 py-0.5 rounded-full">
               {pendingFeaturedRequests.length}
@@ -1280,7 +1280,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
                             <div className="space-y-1">
                               <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full text-[10px] font-semibold">
                                 <Clock className="w-3 h-3 text-blue-600" />
-                                Aguardando Criador
+                                Aguardando Super Admin
                               </span>
                               {isSiteCreatorMode && (
                                 <button
@@ -1302,7 +1302,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
                                 type="button"
                                 onClick={() => openFeatureRequestModal(prop)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 rounded-lg text-[11px] font-bold transition cursor-pointer shadow-2xs"
-                                title="Solicitar ao Criador do Site para colocar este imóvel em destaque na Home"
+                                title="Solicitar ao Super Administrador para colocar este imóvel em destaque na Home"
                               >
                                 <Star className="w-3 h-3 fill-amber-400 text-amber-700" />
                                 Solicitar Destaque
@@ -2899,13 +2899,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
             <div>
               <div className="inline-flex items-center gap-1.5 text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">
                 <Crown className="w-4 h-4 text-amber-400" />
-                Painel do Criador do Site • Gestão de Destaques
+                Painel do Super Administrador (Master) • Gestão de Destaques
               </div>
               <h2 className="text-xl font-bold font-serif">
                 Avaliação e Curadoria de Imóveis em Destaque
               </h2>
               <p className="text-xs text-stone-300 mt-1 max-w-2xl">
-                As imobiliárias (de Extrema, São Paulo, Santos, Campinas) solicitam destaque através de seus painéis. Como Criador do Site, você avalia cada solicitação e aceita para promover automaticamente o imóvel para a <strong>Seção de Destaque</strong> da página inicial.
+                As imobiliárias solicitam destaque através de seus painéis. Como Super Administrador (Master), você avalia cada solicitação e aceita para promover automaticamente o imóvel para a <strong>Seção de Destaque</strong> da página inicial.
               </p>
             </div>
 

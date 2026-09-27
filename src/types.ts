@@ -98,7 +98,7 @@ export interface User {
   email: string;
   phone?: string;
   password?: string;
-  role: 'client' | 'agency_admin' | 'site_creator';
+  role: 'client' | 'agency_admin' | 'super_admin' | 'site_creator';
   agencyId?: string; // Preenchido se for admin de imobiliária
   favorites: string[]; // IDs dos imóveis favoritos
   createdAt?: string;

@@ -61,7 +61,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } else {
       const res = loginUserWithPassword(email, password);
       if (res.success) {
-        if (res.user?.role === 'site_creator' && onSuperAdminSuccess) {
+        if (
+          (res.user?.role === 'super_admin' ||
+            res.user?.role === 'site_creator' ||
+            res.user?.id === 'user-superadmin') &&
+          onSuperAdminSuccess
+        ) {
           onSuperAdminSuccess();
         }
         onClose();

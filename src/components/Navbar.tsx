@@ -37,7 +37,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [agencyDropdownOpen, setAgencyDropdownOpen] = useState(false);
 
   const favoritesCount = currentUser?.favorites?.length || 0;
-  const isSuperAdmin = currentUser?.role === 'site_creator' || isSiteCreatorMode;
+  const isSuperAdmin =
+    currentUser?.role === 'super_admin' ||
+    currentUser?.role === 'site_creator' ||
+    currentUser?.id === 'user-superadmin' ||
+    isSiteCreatorMode;
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -265,14 +269,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center gap-2">
                 <div className="text-right">
                   <div className="text-xs font-semibold text-stone-900 leading-tight flex items-center justify-end gap-1">
-                    {currentUser.role === 'site_creator' && (
+                    {(currentUser.role === 'super_admin' || currentUser.role === 'site_creator' || currentUser.id === 'user-superadmin') && (
                       <Crown className="w-3 h-3 text-amber-500 shrink-0" />
                     )}
                     <span>{currentUser.name}</span>
                   </div>
                   <div className="text-[10px] text-stone-500">
-                    {currentUser.role === 'site_creator'
-                      ? 'Super Administrador'
+                    {currentUser.role === 'super_admin' || currentUser.role === 'site_creator' || currentUser.id === 'user-superadmin'
+                      ? 'Super Administrador (Master)'
                       : currentUser.role === 'agency_admin'
                       ? 'Administrador Imob.'
                       : 'Cliente'}
@@ -427,7 +431,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center justify-between px-2">
                 <div>
                   <div className="text-sm font-semibold text-stone-900 flex items-center gap-1.5">
-                    {currentUser.role === 'site_creator' && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+                    {(currentUser.role === 'super_admin' || currentUser.role === 'site_creator' || currentUser.id === 'user-superadmin') && <Crown className="w-3.5 h-3.5 text-amber-500" />}
                     <span>{currentUser.name}</span>
                   </div>
                   <div className="text-xs text-stone-500">{currentUser.email}</div>

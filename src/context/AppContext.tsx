@@ -31,6 +31,7 @@ interface AppContextType {
   currentUser: User | null;
   selectedAgencyId: string | null; // For agency admin view
   currentAgency: Agency | null;
+  isSuperAdmin: boolean;
   isSiteCreatorMode: boolean;
   setIsSiteCreatorMode: (mode: boolean) => void;
   addAgency: (agencyData: Omit<Agency, 'id'>) => Agency;
@@ -54,7 +55,7 @@ interface AppContextType {
   updateVisitStatus: (visitId: string, status: VisitAppointment['status']) => void;
   toggleFavorite: (propertyId: string) => boolean;
   isFavorite: (propertyId: string) => boolean;
-  loginUser: (email: string, role?: 'client' | 'agency_admin' | 'site_creator', agencyId?: string) => boolean;
+  loginUser: (email: string, role?: 'client' | 'agency_admin' | 'super_admin' | 'site_creator', agencyId?: string) => boolean;
   loginUserWithPassword: (email: string, password?: string) => { success: boolean; error?: string; user?: User };
   loginSuperAdmin: (password: string, email?: string) => boolean;
   registerUser: (name: string, email: string, phone?: string, password?: string) => User;
@@ -165,29 +166,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          let merged: User[] = parsed.map((u: User) => {
-            const initialMatch = INITIAL_USERS.find(
-              (iu) => iu.id === u.id || iu.email.toLowerCase() === u.email.toLowerCase()
-            );
-            return {
-              ...u,
-              password:
-                u.password ||
-                initialMatch?.password ||
-                (u.role === 'site_creator'
-                  ? 'superadmin123'
-                  : u.role === 'agency_admin'
-                  ? 'imobiliaria123'
-                  : 'cliente123'),
-              createdAt: u.createdAt || initialMatch?.createdAt || '2026-01-15',
-              status: u.status || 'active',
-            };
-          });
+          let merged: User[] = parsed
+            .filter((u: User) => u.id !== 'user-site-creator' && u.email?.toLowerCase() !== 'criador@imobirede.com.br')
+            .map((u: User) => {
+              const initialMatch = INITIAL_USERS.find(
+                (iu) => iu.id === u.id || iu.email.toLowerCase() === u.email.toLowerCase()
+              );
+              const isSuper = u.id === 'user-superadmin' || u.role === 'super_admin' || u.role === 'site_creator';
+              return {
+                ...u,
+                name: isSuper ? 'Super Administrador (Master)' : u.name,
+                email: isSuper ? 'superadmin@imobirede.com.br' : u.email,
+                role: isSuper ? ('super_admin' as const) : u.role,
+                password:
+                  u.password ||
+                  initialMatch?.password ||
+                  (isSuper
+                    ? 'superadmin123'
+                    : u.role === 'agency_admin'
+                    ? 'imobiliaria123'
+                    : 'cliente123'),
+                createdAt: u.createdAt || initialMatch?.createdAt || '2026-01-15',
+                status: u.status || 'active',
+              };
+            });
 
           // Ensure superadmin is present
-          if (!merged.some((u) => u.email.toLowerCase() === 'superadmin@imobirede.com.br')) {
-            const sa = INITIAL_USERS.find((iu) => iu.id === 'user-superadmin');
-            if (sa) merged = [sa, ...merged];
+          if (!merged.some((u) => u.id === 'user-superadmin' || u.email.toLowerCase() === 'superadmin@imobirede.com.br')) {
+            const sa = INITIAL_USERS.find((iu) => iu.id === 'user-superadmin') || INITIAL_USERS[0];
+            merged = [sa, ...merged];
           }
           return merged;
         }
@@ -201,7 +208,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      return saved ? JSON.parse(saved) : INITIAL_USERS[0];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.id === 'user-site-creator' || parsed.email?.toLowerCase() === 'criador@imobirede.com.br') {
+          return INITIAL_USERS[0];
+        }
+        if (parsed.role === 'site_creator' || parsed.id === 'user-superadmin') {
+          return { ...parsed, role: 'super_admin' as const, name: 'Super Administrador (Master)', email: 'superadmin@imobirede.com.br' };
+        }
+        return parsed;
+      }
+      return INITIAL_USERS[0];
     } catch {
       return INITIAL_USERS[0];
     }
@@ -222,6 +239,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return false;
     }
   });
+
+  const isSuperAdmin = Boolean(
+    isSiteCreatorMode ||
+    currentUser?.role === 'super_admin' ||
+    currentUser?.role === 'site_creator' ||
+    currentUser?.id === 'user-superadmin'
+  );
 
   const [tickets, setTickets] = useState<SupportTicket[]>(() => {
     try {
@@ -497,11 +521,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return currentUser.favorites.includes(propertyId);
   };
 
-  const loginUser = (email: string, role?: 'client' | 'agency_admin' | 'site_creator', agencyId?: string): boolean => {
+  const loginUser = (email: string, role?: 'client' | 'agency_admin' | 'super_admin' | 'site_creator', agencyId?: string): boolean => {
     const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existingUser) {
       setCurrentUser(existingUser);
-      if (existingUser.role === 'site_creator') {
+      if (existingUser.role === 'super_admin' || existingUser.role === 'site_creator' || existingUser.id === 'user-superadmin') {
         setIsSiteCreatorMode(true);
       }
       if (existingUser.agencyId) {
@@ -546,7 +570,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     setCurrentUser(user);
-    if (user.role === 'site_creator') {
+    if (user.role === 'super_admin' || user.role === 'site_creator' || user.id === 'user-superadmin') {
       setIsSiteCreatorMode(true);
     }
     if (user.agencyId) {
@@ -557,33 +581,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const loginSuperAdmin = (password: string, email = 'superadmin@imobirede.com.br'): boolean => {
     const normalizedEmail = email.toLowerCase().trim();
-    // Allow master logins
+    // Allow master login strictly for Super Administrador (Master)
     const admin = users.find(
       (u) =>
         (u.email.toLowerCase() === normalizedEmail ||
-          u.email.toLowerCase() === 'criador@imobirede.com.br' ||
-          u.role === 'site_creator') &&
-        (u.password === password || password === 'superadmin123' || password === 'master123')
+          u.role === 'super_admin' ||
+          u.role === 'site_creator' ||
+          u.id === 'user-superadmin') &&
+        (u.password === password || password === 'superadmin123')
     );
 
     if (admin) {
-      setCurrentUser(admin);
+      const masterUser: User = {
+        ...admin,
+        role: 'super_admin',
+        name: 'Super Administrador (Master)',
+        email: 'superadmin@imobirede.com.br',
+      };
+      setCurrentUser(masterUser);
       setIsSiteCreatorMode(true);
       return true;
     }
 
     // If password matches the master default
-    if (password === 'superadmin123' || password === 'master123') {
-      const sa = users.find((u) => u.role === 'site_creator') || {
-        id: 'user-superadmin',
-        name: 'Super Administrador (Master)',
-        email: 'superadmin@imobirede.com.br',
-        password: 'superadmin123',
-        role: 'site_creator' as const,
-        favorites: [],
-        createdAt: '2026-01-01',
-        status: 'active' as const,
-      };
+    if (password === 'superadmin123') {
+      const sa = users.find((u) => u.id === 'user-superadmin') || INITIAL_USERS[0];
       setCurrentUser(sa);
       setIsSiteCreatorMode(true);
       return true;
@@ -790,6 +812,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         currentUser,
         selectedAgencyId,
         currentAgency,
+        isSuperAdmin,
         isSiteCreatorMode,
         setIsSiteCreatorMode,
         addAgency,
