@@ -7,6 +7,7 @@ interface AppContextType {
   agencies: Agency[];
   properties: Property[];
   visits: VisitAppointment[];
+  users: User[];
   currentUser: User | null;
   selectedAgencyId: string | null; // For agency admin view
   currentAgency: Agency | null;
@@ -14,6 +15,7 @@ interface AppContextType {
   setIsSiteCreatorMode: (mode: boolean) => void;
   addAgency: (agencyData: Omit<Agency, 'id'>) => Agency;
   updateAgency: (id: string, updates: Partial<Agency>) => void;
+  deleteAgency: (agencyId: string) => void;
   updateAgencyPlan: (
     agencyId: string,
     plano: PlanType,
@@ -33,7 +35,13 @@ interface AppContextType {
   toggleFavorite: (propertyId: string) => boolean;
   isFavorite: (propertyId: string) => boolean;
   loginUser: (email: string, role?: 'client' | 'agency_admin' | 'site_creator', agencyId?: string) => boolean;
-  registerUser: (name: string, email: string, phone?: string) => User;
+  loginUserWithPassword: (email: string, password?: string) => { success: boolean; error?: string; user?: User };
+  loginSuperAdmin: (password: string, email?: string) => boolean;
+  registerUser: (name: string, email: string, phone?: string, password?: string) => User;
+  updateUserPassword: (userId: string, newPassword: string) => boolean;
+  updateUser: (userId: string, updates: Partial<User>) => void;
+  deleteUser: (userId: string) => boolean;
+  addUser: (userData: Omit<User, 'id' | 'favorites'> & { favorites?: string[] }) => User;
   logoutUser: () => void;
   setSelectedAgencyId: (agencyId: string | null) => void;
   incrementPropertyView: (propertyId: string) => void;
@@ -118,7 +126,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-      return saved ? JSON.parse(saved) : INITIAL_USERS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          let merged: User[] = parsed.map((u: User) => {
+            const initialMatch = INITIAL_USERS.find(
+              (iu) => iu.id === u.id || iu.email.toLowerCase() === u.email.toLowerCase()
+            );
+            return {
+              ...u,
+              password:
+                u.password ||
+                initialMatch?.password ||
+                (u.role === 'site_creator'
+                  ? 'superadmin123'
+                  : u.role === 'agency_admin'
+                  ? 'imobiliaria123'
+                  : 'cliente123'),
+              createdAt: u.createdAt || initialMatch?.createdAt || '2026-01-15',
+              status: u.status || 'active',
+            };
+          });
+
+          // Ensure superadmin is present
+          if (!merged.some((u) => u.email.toLowerCase() === 'superadmin@imobirede.com.br')) {
+            const sa = INITIAL_USERS.find((iu) => iu.id === 'user-superadmin');
+            if (sa) merged = [sa, ...merged];
+          }
+          return merged;
+        }
+      }
+      return INITIAL_USERS;
     } catch {
       return INITIAL_USERS;
     }
@@ -201,6 +239,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateAgency = (id: string, updates: Partial<Agency>) => {
     setAgencies((prev) => prev.map((ag) => (ag.id === id ? { ...ag, ...updates } : ag)));
+  };
+
+  const deleteAgency = (agencyId: string) => {
+    setAgencies((prev) => prev.filter((ag) => ag.id !== agencyId));
+    setProperties((prev) => prev.filter((p) => p.agencyId !== agencyId));
+    setVisits((prev) => prev.filter((v) => v.agencyId !== agencyId));
+    if (selectedAgencyId === agencyId) {
+      const remaining = agencies.filter((ag) => ag.id !== agencyId);
+      setSelectedAgencyId(remaining[0]?.id || null);
+    }
   };
 
   const updateAgencyPlan = (
@@ -387,10 +435,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return currentUser.favorites.includes(propertyId);
   };
 
-  const loginUser = (email: string, role?: 'client' | 'agency_admin', agencyId?: string): boolean => {
+  const loginUser = (email: string, role?: 'client' | 'agency_admin' | 'site_creator', agencyId?: string): boolean => {
     const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existingUser) {
       setCurrentUser(existingUser);
+      if (existingUser.role === 'site_creator') {
+        setIsSiteCreatorMode(true);
+      }
       if (existingUser.agencyId) {
         setSelectedAgencyId(existingUser.agencyId);
       }
@@ -402,9 +453,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: `user-${Date.now()}`,
       name: email.split('@')[0],
       email: email.toLowerCase(),
+      password: role === 'agency_admin' ? 'imobiliaria123' : 'cliente123',
       role: role || 'client',
       agencyId: agencyId,
       favorites: [],
+      createdAt: new Date().toISOString().split('T')[0],
+      status: 'active',
     };
     setUsers((prev) => [...prev, newUser]);
     setCurrentUser(newUser);
@@ -414,7 +468,69 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return true;
   };
 
-  const registerUser = (name: string, email: string, phone?: string): User => {
+  const loginUserWithPassword = (
+    email: string,
+    password?: string
+  ): { success: boolean; error?: string; user?: User } => {
+    const normalized = email.toLowerCase().trim();
+    const user = users.find((u) => u.email.toLowerCase() === normalized);
+
+    if (!user) {
+      return { success: false, error: 'Usuário não encontrado. Verifique seu e-mail.' };
+    }
+
+    if (password && user.password && user.password !== password) {
+      return { success: false, error: 'Senha incorreta. Verifique e tente novamente.' };
+    }
+
+    setCurrentUser(user);
+    if (user.role === 'site_creator') {
+      setIsSiteCreatorMode(true);
+    }
+    if (user.agencyId) {
+      setSelectedAgencyId(user.agencyId);
+    }
+    return { success: true, user };
+  };
+
+  const loginSuperAdmin = (password: string, email = 'superadmin@imobirede.com.br'): boolean => {
+    const normalizedEmail = email.toLowerCase().trim();
+    // Allow master logins
+    const admin = users.find(
+      (u) =>
+        (u.email.toLowerCase() === normalizedEmail ||
+          u.email.toLowerCase() === 'criador@imobirede.com.br' ||
+          u.role === 'site_creator') &&
+        (u.password === password || password === 'superadmin123' || password === 'master123')
+    );
+
+    if (admin) {
+      setCurrentUser(admin);
+      setIsSiteCreatorMode(true);
+      return true;
+    }
+
+    // If password matches the master default
+    if (password === 'superadmin123' || password === 'master123') {
+      const sa = users.find((u) => u.role === 'site_creator') || {
+        id: 'user-superadmin',
+        name: 'Super Administrador (Master)',
+        email: 'superadmin@imobirede.com.br',
+        password: 'superadmin123',
+        role: 'site_creator' as const,
+        favorites: [],
+        createdAt: '2026-01-01',
+        status: 'active' as const,
+      };
+      setCurrentUser(sa);
+      setIsSiteCreatorMode(true);
+      return true;
+    }
+
+    return false;
+  };
+
+  const registerUser = (name: string, email: string, phone?: string, password?: string): User => {
     const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existing) {
       setCurrentUser(existing);
@@ -426,8 +542,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       name,
       email: email.toLowerCase(),
       phone,
+      password: password || 'cliente123',
       role: 'client',
       favorites: [],
+      createdAt: new Date().toISOString().split('T')[0],
+      status: 'active',
     };
 
     setUsers((prev) => [...prev, newUser]);
@@ -435,8 +554,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newUser;
   };
 
+  const updateUserPassword = (userId: string, newPassword: string): boolean => {
+    if (!newPassword || newPassword.trim().length === 0) return false;
+    const cleanPassword = newPassword.trim();
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, password: cleanPassword } : u))
+    );
+    if (currentUser?.id === userId) {
+      setCurrentUser((prev) => (prev ? { ...prev, password: cleanPassword } : null));
+    }
+    return true;
+  };
+
+  const updateUser = (userId: string, updates: Partial<User>) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, ...updates } : u))
+    );
+    if (currentUser?.id === userId) {
+      setCurrentUser((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+  };
+
+  const deleteUser = (userId: string): boolean => {
+    if (currentUser?.id === userId) {
+      return false; // Cannot delete self
+    }
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+    return true;
+  };
+
+  const addUser = (userData: Omit<User, 'id' | 'favorites'> & { favorites?: string[] }): User => {
+    const id = `user-${Date.now()}`;
+    const newUser: User = {
+      ...userData,
+      id,
+      password:
+        userData.password ||
+        (userData.role === 'site_creator'
+          ? 'superadmin123'
+          : userData.role === 'agency_admin'
+          ? 'imobiliaria123'
+          : 'cliente123'),
+      favorites: userData.favorites || [],
+      createdAt: new Date().toISOString().split('T')[0],
+      status: userData.status || 'active',
+    };
+    setUsers((prev) => [...prev, newUser]);
+    return newUser;
+  };
+
   const logoutUser = () => {
     setCurrentUser(null);
+    setIsSiteCreatorMode(false);
   };
 
   const resetToDefaults = () => {
@@ -446,6 +615,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUsers(INITIAL_USERS);
     setCurrentUser(INITIAL_USERS[0]);
     setSelectedAgencyId('ag-vertice');
+    setIsSiteCreatorMode(false);
     localStorage.clear();
   };
 
@@ -455,6 +625,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         agencies,
         properties,
         visits,
+        users,
         currentUser,
         selectedAgencyId,
         currentAgency,
@@ -462,6 +633,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsSiteCreatorMode,
         addAgency,
         updateAgency,
+        deleteAgency,
         updateAgencyPlan,
         addProperty,
         updateProperty,
@@ -476,7 +648,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleFavorite,
         isFavorite,
         loginUser,
+        loginUserWithPassword,
+        loginSuperAdmin,
         registerUser,
+        updateUserPassword,
+        updateUser,
+        deleteUser,
+        addUser,
         logoutUser,
         setSelectedAgencyId,
         incrementPropertyView,

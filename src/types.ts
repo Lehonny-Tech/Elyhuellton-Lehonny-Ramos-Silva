@@ -97,9 +97,12 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  password?: string;
   role: 'client' | 'agency_admin' | 'site_creator';
   agencyId?: string; // Preenchido se for admin de imobiliária
   favorites: string[]; // IDs dos imóveis favoritos
+  createdAt?: string;
+  status?: 'active' | 'suspended';
 }
 
 export interface FilterState {

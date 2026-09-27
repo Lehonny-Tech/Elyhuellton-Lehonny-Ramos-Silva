@@ -6,21 +6,24 @@ import { PropertyList } from './components/PropertyList';
 import { GeolocatedMap } from './components/GeolocatedMap';
 import { FavoritesView } from './components/FavoritesView';
 import { AdminPanel } from './components/AdminPanel';
+import { SuperAdminPanel } from './components/SuperAdminPanel';
+import { SuperAdminLoginModal } from './components/SuperAdminLoginModal';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { ScheduleVisitModal } from './components/ScheduleVisitModal';
 import { AuthModal } from './components/AuthModal';
 import { MortgageSimulator } from './components/MortgageSimulator';
 import { Property, FilterState } from './types';
-import { Building2, ShieldCheck, MapPin, Phone, Heart, Sparkles, RefreshCw, Calculator } from 'lucide-react';
+import { Building2, ShieldCheck, MapPin, Phone, Heart, Sparkles, RefreshCw, Calculator, Crown } from 'lucide-react';
 
 function MainAppContent() {
-  const { properties, agencies, resetToDefaults } = useApp();
+  const { properties, agencies, resetToDefaults, currentUser } = useApp();
 
-  const [currentTab, setCurrentTab] = useState<'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin' | 'super_admin'>('home');
   const [selectedPropertyForDetail, setSelectedPropertyForDetail] = useState<Property | null>(null);
   const [selectedPropertyForSchedule, setSelectedPropertyForSchedule] = useState<Property | null>(null);
   const [simulatorProperty, setSimulatorProperty] = useState<Property | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [superAdminLoginOpen, setSuperAdminLoginOpen] = useState(false);
   const [passedFilters, setPassedFilters] = useState<Partial<FilterState>>({});
 
   const handleGoToSearch = (filters?: Partial<FilterState>) => {
@@ -43,6 +46,7 @@ function MainAppContent() {
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         openAuthModal={() => setAuthModalOpen(true)}
+        openSuperAdminLogin={() => setSuperAdminLoginOpen(true)}
       />
 
       {/* Main App Container */}
@@ -134,6 +138,13 @@ function MainAppContent() {
             onViewProperty={(prop) => setSelectedPropertyForDetail(prop)}
           />
         )}
+
+        {currentTab === 'super_admin' && (
+          <SuperAdminPanel
+            onViewProperty={(prop) => setSelectedPropertyForDetail(prop)}
+            onSelectTab={setCurrentTab}
+          />
+        )}
       </main>
 
       {/* Global Footer */}
@@ -172,7 +183,7 @@ function MainAppContent() {
                     }}
                     className="hover:text-white transition cursor-pointer"
                   >
-                    Início & Destaques
+                    Página Inicial
                   </button>
                 </li>
                 <li>
@@ -183,7 +194,7 @@ function MainAppContent() {
                     }}
                     className="hover:text-white transition cursor-pointer"
                   >
-                    Busca Avançada com Filtros
+                    Buscar Imóveis
                   </button>
                 </li>
                 <li>
@@ -200,12 +211,32 @@ function MainAppContent() {
                 <li>
                   <button
                     onClick={() => {
+                      setCurrentTab('simulator');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="hover:text-white transition cursor-pointer"
+                  >
+                    Simulador Imobiliário
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => {
                       setCurrentTab('admin');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="hover:text-white transition cursor-pointer text-emerald-400"
+                    className="hover:text-white transition cursor-pointer"
                   >
-                    Painel do Corretor / Imobiliária
+                    Painel da Imobiliária
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setSuperAdminLoginOpen(true)}
+                    className="text-amber-400 hover:text-amber-300 transition cursor-pointer font-semibold flex items-center gap-1"
+                  >
+                    <Crown className="w-3 h-3" />
+                    <span>Acesso Super Administrador</span>
                   </button>
                 </li>
               </ul>
@@ -214,29 +245,18 @@ function MainAppContent() {
             {/* Col 3 */}
             <div className="space-y-2">
               <div className="font-bold text-white uppercase tracking-wider text-[11px]">
-                Imobiliárias na Rede
+                Portal Administrativo
               </div>
-              <ul className="space-y-1.5 text-stone-300">
-                {agencies.map((ag) => (
-                  <li key={ag.id} className="truncate">
-                    <span className="text-white font-medium">{ag.tradeName}</span>
-                    <span className="text-stone-500 text-[10px] ml-1 font-mono">
-                      (CRECI {ag.creci})
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <div className="pt-2">
+              <p className="text-stone-400 leading-relaxed text-[11px]">
+                Área restrita para gestores imobiliários e administradores do portal.
+              </p>
+              <div className="pt-2 space-y-2">
                 <button
-                  onClick={() => {
-                    if (confirm('Deseja restaurar todos os imóveis, imobiliárias e visitas para os dados iniciais de demonstração?')) {
-                      resetToDefaults();
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 text-[10px] text-stone-500 hover:text-stone-300 transition cursor-pointer"
+                  onClick={() => setSuperAdminLoginOpen(true)}
+                  className="w-full py-2 px-3 bg-stone-800 hover:bg-stone-700 text-amber-400 border border-amber-500/40 rounded-xl font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
-                  <RefreshCw className="w-3 h-3" />
-                  Restaurar dados de teste
+                  <Crown className="w-3.5 h-3.5" />
+                  <span>Painel Super Admin Master</span>
                 </button>
               </div>
             </div>
@@ -244,7 +264,7 @@ function MainAppContent() {
 
           <div className="pt-6 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-stone-500 text-[11px]">
             <div>&copy; 2026 ImobiRede Multi-Imobiliárias. Todos os direitos reservados.</div>
-            <div>São Paulo • Santos • Campinas e região metropolitana</div>
+            <div>São Paulo • Santos • Campinas • Extrema e regiões metropolitanas</div>
           </div>
         </div>
       </footer>
@@ -275,6 +295,19 @@ function MainAppContent() {
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
+        onSuperAdminSuccess={() => {
+          setCurrentTab('super_admin');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+
+      <SuperAdminLoginModal
+        isOpen={superAdminLoginOpen}
+        onClose={() => setSuperAdminLoginOpen(false)}
+        onLoginSuccess={() => {
+          setCurrentTab('super_admin');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
     </div>
   );

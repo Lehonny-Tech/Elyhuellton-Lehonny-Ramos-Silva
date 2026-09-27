@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
-import { Building2, Heart, MapPin, Search, ShieldCheck, User as UserIcon, LogOut, Menu, X, PlusCircle, Sparkles, Calculator } from 'lucide-react';
+import {
+  Building2,
+  Heart,
+  MapPin,
+  Search,
+  ShieldCheck,
+  User as UserIcon,
+  LogOut,
+  Menu,
+  X,
+  PlusCircle,
+  Sparkles,
+  Calculator,
+  Crown,
+  KeyRound,
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface NavbarProps {
-  currentTab: 'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin';
-  setCurrentTab: (tab: 'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin') => void;
+  currentTab: 'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin' | 'super_admin';
+  setCurrentTab: (tab: 'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin' | 'super_admin') => void;
   openAuthModal: () => void;
+  openSuperAdminLogin: () => void;
   openNewPropertyModal?: () => void;
 }
 
@@ -13,17 +29,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   setCurrentTab,
   openAuthModal,
+  openSuperAdminLogin,
   openNewPropertyModal,
 }) => {
-  const { currentUser, logoutUser, agencies, currentAgency, setSelectedAgencyId } = useApp();
+  const { currentUser, logoutUser, agencies, currentAgency, setSelectedAgencyId, isSiteCreatorMode } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [agencyDropdownOpen, setAgencyDropdownOpen] = useState(false);
 
   const favoritesCount = currentUser?.favorites?.length || 0;
+  const isSuperAdmin = currentUser?.role === 'site_creator' || isSiteCreatorMode;
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
-      {/* Top Banner with Agency multi-tenant awareness */}
+      {/* Top Banner with Agency multi-tenant awareness & Super Admin Quick Link */}
       <div className="bg-stone-900 text-stone-300 text-xs px-4 py-1.5 flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1 font-medium text-amber-400">
@@ -32,10 +50,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           </span>
           <span>{agencies.length} imobiliárias parceiras ativas</span>
           <span className="hidden sm:inline text-stone-500">•</span>
-          <span className="hidden sm:inline text-stone-400">Locação garantida com caução, agendamento online e busca com mapa</span>
+          <span className="hidden sm:inline text-stone-400">Locação com caução, agendamento online e simulador</span>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Quick Super Admin Login Access in top strip */}
+          <button
+            id="top-superadmin-login"
+            onClick={isSuperAdmin ? () => setCurrentTab('super_admin') : openSuperAdminLogin}
+            className={`flex items-center gap-1.5 text-xs font-bold transition cursor-pointer px-2.5 py-0.5 rounded-md border ${
+              isSuperAdmin
+                ? 'bg-amber-500 text-stone-950 border-amber-400'
+                : 'text-amber-400 hover:text-amber-300 bg-stone-800/90 border-amber-500/40 hover:bg-stone-800'
+            }`}
+            title="Acesso exclusivo do Super Administrador (Master)"
+          >
+            <Crown className="w-3.5 h-3.5" />
+            <span>{isSuperAdmin ? '👑 Painel Master' : 'Login Super Admin'}</span>
+          </button>
+
           {/* Agency quick selector for demo / multi-imobiliária management */}
           <div className="relative">
             <button
@@ -45,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Alternar entre imobiliárias para gerenciar"
             >
               <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="truncate max-w-[140px] sm:max-w-[200px]">
+              <span className="truncate max-w-[130px] sm:max-w-[180px]">
                 {currentAgency ? currentAgency.tradeName : 'Selecionar Imobiliária'}
               </span>
               <span className="text-[10px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
@@ -114,7 +147,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="nav-btn-home"
               onClick={() => setCurrentTab('home')}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                 currentTab === 'home'
                   ? 'bg-emerald-50 text-emerald-700 font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
@@ -126,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="nav-btn-properties"
               onClick={() => setCurrentTab('properties')}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
                 currentTab === 'properties'
                   ? 'bg-emerald-50 text-emerald-700 font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
@@ -139,20 +172,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="nav-btn-map"
               onClick={() => setCurrentTab('map')}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
                 currentTab === 'map'
                   ? 'bg-emerald-50 text-emerald-700 font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
               }`}
             >
               <MapPin className="w-4 h-4 text-emerald-600" />
-              Mapa Geolocalizado
+              Mapa
             </button>
 
             <button
               id="nav-btn-favorites"
               onClick={() => setCurrentTab('favorites')}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer relative ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer relative ${
                 currentTab === 'favorites'
                   ? 'bg-emerald-50 text-emerald-700 font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
@@ -174,40 +207,75 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="nav-btn-simulator"
               onClick={() => setCurrentTab('simulator')}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
                 currentTab === 'simulator'
                   ? 'bg-emerald-50 text-emerald-700 font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
               }`}
             >
               <Calculator className="w-4 h-4 text-emerald-600" />
-              <span>Simular Financiamento</span>
+              <span>Simulador</span>
             </button>
 
             <button
               id="nav-btn-admin"
               onClick={() => setCurrentTab('admin')}
-              className={`ml-2 px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border ${
+              className={`ml-1 px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border ${
                 currentTab === 'admin'
-                  ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
+                  ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
                   : 'border-stone-300 text-stone-700 hover:bg-stone-100 hover:border-stone-400'
               }`}
+              title="Painel de Gestão da Imobiliária e Corretores"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Painel do Corretor / Imobiliária</span>
+              <span>Painel Imobiliária</span>
             </button>
+
+            {/* DEDICATED SUPER ADMIN MENU ITEM */}
+            {isSuperAdmin ? (
+              <button
+                id="nav-btn-superadmin"
+                onClick={() => setCurrentTab('super_admin')}
+                className={`ml-1.5 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                  currentTab === 'super_admin'
+                    ? 'bg-amber-500 text-stone-950 font-black ring-2 ring-amber-400'
+                    : 'bg-stone-900 text-amber-400 border border-amber-500/50 hover:bg-stone-800'
+                }`}
+                title="Painel Master do Super Administrador (Controle irrestrito e senhas)"
+              >
+                <Crown className="w-4 h-4" />
+                <span>Painel Super Admin</span>
+              </button>
+            ) : (
+              <button
+                id="nav-btn-superadmin-login"
+                onClick={openSuperAdminLogin}
+                className="ml-1.5 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-stone-900 text-amber-400 border border-amber-500/50 hover:bg-stone-800 hover:border-amber-400 shadow-xs"
+                title="Painel específico de Login do Super Administrador Master"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>Super Admin</span>
+              </button>
+            )}
           </nav>
 
           {/* User Auth and CTA */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             {currentUser ? (
               <div className="flex items-center gap-2">
                 <div className="text-right">
-                  <div className="text-xs font-semibold text-stone-900 leading-tight">
-                    {currentUser.name}
+                  <div className="text-xs font-semibold text-stone-900 leading-tight flex items-center justify-end gap-1">
+                    {currentUser.role === 'site_creator' && (
+                      <Crown className="w-3 h-3 text-amber-500 shrink-0" />
+                    )}
+                    <span>{currentUser.name}</span>
                   </div>
-                  <div className="text-[11px] text-stone-500">
-                    {currentUser.role === 'agency_admin' ? 'Administrador' : 'Cliente'}
+                  <div className="text-[10px] text-stone-500">
+                    {currentUser.role === 'site_creator'
+                      ? 'Super Administrador'
+                      : currentUser.role === 'agency_admin'
+                      ? 'Administrador Imob.'
+                      : 'Cliente'}
                   </div>
                 </div>
                 <button
@@ -220,14 +288,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </div>
             ) : (
-              <button
-                id="nav-login-btn"
-                onClick={openAuthModal}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-700 hover:text-emerald-700 bg-stone-100 hover:bg-stone-200/80 px-3.5 py-2 rounded-lg transition cursor-pointer"
-              >
-                <UserIcon className="w-4 h-4" />
-                Entrar / Cadastrar
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  id="nav-login-btn"
+                  onClick={openAuthModal}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-700 hover:text-emerald-700 bg-stone-100 hover:bg-stone-200/80 px-3 py-2 rounded-lg transition cursor-pointer"
+                >
+                  <UserIcon className="w-4 h-4" />
+                  <span>Entrar / Cadastrar</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -248,12 +318,37 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-stone-200 bg-white px-4 pt-3 pb-6 space-y-2 shadow-lg">
+          {/* Quick Super Admin Highlight on mobile */}
+          {isSuperAdmin ? (
+            <button
+              onClick={() => {
+                setCurrentTab('super_admin');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-amber-500 text-stone-950 shadow-xs"
+            >
+              <Crown className="w-4 h-4" />
+              <span>Painel Super Administrador (Master)</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                openSuperAdminLogin();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-stone-900 text-amber-400 border border-amber-500/50"
+            >
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span>Login de Super Administrador (Master)</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               setCurrentTab('home');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-base font-medium ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${
               currentTab === 'home' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700'
             }`}
           >
@@ -264,7 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               setCurrentTab('properties');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-base font-medium flex items-center gap-2 ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
               currentTab === 'properties' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700'
             }`}
           >
@@ -276,7 +371,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               setCurrentTab('map');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-base font-medium flex items-center gap-2 ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
               currentTab === 'map' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700'
             }`}
           >
@@ -288,7 +383,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               setCurrentTab('favorites');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-base font-medium flex items-center justify-between ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between ${
               currentTab === 'favorites' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700'
             }`}
           >
@@ -307,7 +402,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               setCurrentTab('simulator');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-base font-medium flex items-center gap-2 ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
               currentTab === 'simulator' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-stone-700'
             }`}
           >
@@ -319,7 +414,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               setCurrentTab('admin');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-base font-medium flex items-center gap-2 ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
               currentTab === 'admin' ? 'bg-stone-900 text-white' : 'text-stone-900 bg-stone-100'
             }`}
           >
@@ -331,7 +426,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             {currentUser ? (
               <div className="flex items-center justify-between px-2">
                 <div>
-                  <div className="text-sm font-semibold text-stone-900">{currentUser.name}</div>
+                  <div className="text-sm font-semibold text-stone-900 flex items-center gap-1.5">
+                    {currentUser.role === 'site_creator' && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+                    <span>{currentUser.name}</span>
+                  </div>
                   <div className="text-xs text-stone-500">{currentUser.email}</div>
                 </div>
                 <button
@@ -339,21 +437,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                     logoutUser();
                     setMobileMenuOpen(false);
                   }}
-                  className="px-3 py-1.5 text-xs font-medium text-rose-600 bg-rose-50 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-medium text-rose-600 bg-rose-50 rounded-lg cursor-pointer"
                 >
                   Sair
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => {
-                  openAuthModal();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-center py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm shadow-sm"
-              >
-                Entrar ou Cadastrar
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    openAuthModal();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-center py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm shadow-sm cursor-pointer"
+                >
+                  Entrar ou Cadastrar
+                </button>
+              </div>
             )}
           </div>
         </div>

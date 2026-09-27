@@ -30,6 +30,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  KeyRound,
 } from 'lucide-react';
 import { Property, Agency, VisitAppointment, PropertyType, PropertyPurpose, PlanType, SubscriptionStatus } from '../types';
 import { useApp } from '../context/AppContext';
@@ -47,6 +48,7 @@ import { UpgradePlanModal } from './UpgradePlanModal';
 import { ManageAgencyPlanModal } from './ManageAgencyPlanModal';
 import { AgencyMyPlanView } from './AgencyMyPlanView';
 import { MasterPlanManagementTab } from './MasterPlanManagementTab';
+import { SuperAdminUsersManagementTab } from './SuperAdminUsersManagementTab';
 
 interface AdminPanelProps {
   onViewProperty: (property: Property) => void;
@@ -165,7 +167,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
     getAgencyById,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'properties' | 'new_property' | 'visits' | 'my_plan' | 'plans_management' | 'agencies' | 'featured_workflow'>('properties');
+  const [activeTab, setActiveTab] = useState<'properties' | 'new_property' | 'visits' | 'my_plan' | 'plans_management' | 'agencies' | 'featured_workflow' | 'users'>('properties');
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string>('');
 
@@ -931,6 +933,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
           <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-black border border-amber-300">
             {agencies.length}
           </span>
+        </button>
+
+        {/* Master Admin Users & Passwords Tab */}
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === 'users'
+              ? 'border-amber-500 text-amber-950 bg-amber-100/90 font-black'
+              : 'border-transparent text-amber-800 hover:text-amber-950 hover:bg-amber-50/50'
+          }`}
+        >
+          <KeyRound className="w-4 h-4 text-amber-600" />
+          <span>Usuários & Senhas Master</span>
         </button>
 
         <button
@@ -2498,6 +2513,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
             setActiveTab('properties');
           }}
         />
+      )}
+
+      {/* TAB: GESTÃO DE USUÁRIOS & SENHAS MASTER */}
+      {activeTab === 'users' && (
+        <SuperAdminUsersManagementTab agencies={agencies} />
       )}
 
       {/* TAB 4: CADASTRAR NOVA IMOBILIÁRIA (Multi-empresa total) */}
