@@ -31,6 +31,8 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   KeyRound,
+  LifeBuoy,
+  Handshake,
 } from 'lucide-react';
 import { Property, Agency, VisitAppointment, PropertyType, PropertyPurpose, PlanType, SubscriptionStatus } from '../types';
 import { useApp } from '../context/AppContext';
@@ -49,6 +51,9 @@ import { ManageAgencyPlanModal } from './ManageAgencyPlanModal';
 import { AgencyMyPlanView } from './AgencyMyPlanView';
 import { MasterPlanManagementTab } from './MasterPlanManagementTab';
 import { SuperAdminUsersManagementTab } from './SuperAdminUsersManagementTab';
+import { AgencySupportTicketsTab } from './AgencySupportTicketsTab';
+import { InterAgencyChatTab } from './InterAgencyChatTab';
+import { SuperAdminTicketsTab } from './SuperAdminTicketsTab';
 
 interface AdminPanelProps {
   onViewProperty: (property: Property) => void;
@@ -167,7 +172,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
     getAgencyById,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'properties' | 'new_property' | 'visits' | 'my_plan' | 'plans_management' | 'agencies' | 'featured_workflow' | 'users'>('properties');
+  const [activeTab, setActiveTab] = useState<'properties' | 'new_property' | 'visits' | 'my_plan' | 'plans_management' | 'agencies' | 'featured_workflow' | 'users' | 'tickets' | 'agency_chat' | 'master_tickets'>('properties');
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string>('');
 
@@ -976,6 +981,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
             </span>
           )}
         </button>
+
+        {/* Agency Support Tickets & Repair Request Tab */}
+        <button
+          onClick={() => setActiveTab('tickets')}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === 'tickets'
+              ? 'border-emerald-600 text-emerald-800 bg-emerald-50/70 font-bold'
+              : 'border-transparent text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <LifeBuoy className="w-4 h-4 text-emerald-600" />
+          <span>Chamados & Reparos</span>
+        </button>
+
+        {/* Inter-Agency B2B Chat Tab */}
+        <button
+          onClick={() => setActiveTab('agency_chat')}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === 'agency_chat'
+              ? 'border-emerald-600 text-emerald-800 bg-emerald-50/70 font-bold'
+              : 'border-transparent text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <Handshake className="w-4 h-4 text-emerald-600" />
+          <span>Chat da Rede (B2B)</span>
+        </button>
+
+        {/* Master Site Admin Ticket Desk */}
+        {isSiteCreatorMode && (
+          <button
+            onClick={() => setActiveTab('master_tickets')}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              activeTab === 'master_tickets'
+                ? 'border-amber-500 text-amber-950 bg-amber-100 font-black'
+                : 'border-transparent text-amber-800 hover:text-amber-950 hover:bg-amber-50/50'
+            }`}
+          >
+            <LifeBuoy className="w-4 h-4 text-amber-600" />
+            <span>Recepção de Chamados (Master)</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: GERENCIAR IMÓVEIS DA IMOBILIÁRIA (com todos os filtros solicitados) */}
@@ -2518,6 +2564,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onViewProperty }) => {
       {/* TAB: GESTÃO DE USUÁRIOS & SENHAS MASTER */}
       {activeTab === 'users' && (
         <SuperAdminUsersManagementTab agencies={agencies} />
+      )}
+
+      {/* TAB: CHAMADOS & SUPORTE DA IMOBILIÁRIA */}
+      {activeTab === 'tickets' && currentAgency && (
+        <AgencySupportTicketsTab currentAgency={currentAgency} />
+      )}
+
+      {/* TAB: CHAT INTER-IMOBILIÁRIAS (B2B) */}
+      {activeTab === 'agency_chat' && currentAgency && (
+        <InterAgencyChatTab currentAgency={currentAgency} />
+      )}
+
+      {/* TAB: RECEPÇÃO DE CHAMADOS MASTER (SITE ADMINISTRATORS) */}
+      {activeTab === 'master_tickets' && (
+        <SuperAdminTicketsTab agencies={agencies} />
       )}
 
       {/* TAB 4: CADASTRAR NOVA IMOBILIÁRIA (Multi-empresa total) */}

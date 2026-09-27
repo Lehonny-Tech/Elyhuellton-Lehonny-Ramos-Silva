@@ -1,6 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Agency, Property, VisitAppointment, User, PlanType, SubscriptionStatus } from '../types';
-import { INITIAL_AGENCIES, INITIAL_PROPERTIES, INITIAL_VISITS, INITIAL_USERS } from '../data/initialData';
+import {
+  Agency,
+  Property,
+  VisitAppointment,
+  User,
+  PlanType,
+  SubscriptionStatus,
+  SupportTicket,
+  TicketMessage,
+  TicketStatus,
+  AgencyChatMessage,
+} from '../types';
+import {
+  INITIAL_AGENCIES,
+  INITIAL_PROPERTIES,
+  INITIAL_VISITS,
+  INITIAL_USERS,
+  INITIAL_TICKETS,
+  INITIAL_AGENCY_CHAT,
+} from '../data/initialData';
 import { canCreateProperty } from '../utils/planPermissions';
 
 interface AppContextType {
@@ -8,6 +26,8 @@ interface AppContextType {
   properties: Property[];
   visits: VisitAppointment[];
   users: User[];
+  tickets: SupportTicket[];
+  agencyChatMessages: AgencyChatMessage[];
   currentUser: User | null;
   selectedAgencyId: string | null; // For agency admin view
   currentAgency: Agency | null;
@@ -42,6 +62,20 @@ interface AppContextType {
   updateUser: (userId: string, updates: Partial<User>) => void;
   deleteUser: (userId: string) => boolean;
   addUser: (userData: Omit<User, 'id' | 'favorites'> & { favorites?: string[] }) => User;
+  createSupportTicket: (
+    ticketData: Omit<SupportTicket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt' | 'messages'> & {
+      initialMessage?: string;
+    }
+  ) => SupportTicket;
+  addTicketMessage: (
+    ticketId: string,
+    message: Omit<TicketMessage, 'id' | 'createdAt'>
+  ) => void;
+  updateTicketStatus: (ticketId: string, status: TicketStatus) => void;
+  deleteSupportTicket: (ticketId: string) => void;
+  sendAgencyChatMessage: (
+    messageData: Omit<AgencyChatMessage, 'id' | 'createdAt'>
+  ) => AgencyChatMessage;
   logoutUser: () => void;
   setSelectedAgencyId: (agencyId: string | null) => void;
   incrementPropertyView: (propertyId: string) => void;
@@ -60,6 +94,8 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'imobirede_current_user_v4',
   SELECTED_AGENCY: 'imobirede_selected_agency_v4',
   SITE_CREATOR_MODE: 'imobirede_site_creator_mode_v4',
+  TICKETS: 'imobirede_tickets_v1',
+  AGENCY_CHAT: 'imobirede_agency_chat_v1',
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -187,6 +223,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   });
 
+  const [tickets, setTickets] = useState<SupportTicket[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TICKETS);
+      return saved ? JSON.parse(saved) : INITIAL_TICKETS;
+    } catch {
+      return INITIAL_TICKETS;
+    }
+  });
+
+  const [agencyChatMessages, setAgencyChatMessages] = useState<AgencyChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.AGENCY_CHAT);
+      return saved ? JSON.parse(saved) : INITIAL_AGENCY_CHAT;
+    } catch {
+      return INITIAL_AGENCY_CHAT;
+    }
+  });
+
   // Sync to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.AGENCIES, JSON.stringify(agencies));
@@ -203,6 +257,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TICKETS, JSON.stringify(tickets));
+  }, [tickets]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.AGENCY_CHAT, JSON.stringify(agencyChatMessages));
+  }, [agencyChatMessages]);
 
   useEffect(() => {
     if (currentUser) {
@@ -603,6 +665,101 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newUser;
   };
 
+  const createSupportTicket = (
+    ticketData: Omit<SupportTicket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt' | 'messages'> & {
+      initialMessage?: string;
+    }
+  ): SupportTicket => {
+    const highestNumber = tickets.reduce((max, t) => Math.max(max, t.ticketNumber || 1000), 1000);
+    const ticketNumber = highestNumber + 1;
+    const id = `ticket-${ticketNumber}`;
+    const now = new Date().toISOString();
+
+    const initialMessages: TicketMessage[] = ticketData.initialMessage
+      ? [
+          {
+            id: `msg-${Date.now()}`,
+            senderRole: 'agency',
+            senderName: ticketData.requesterName,
+            senderEmail: ticketData.requesterEmail,
+            senderAgencyId: ticketData.agencyId,
+            message: ticketData.initialMessage,
+            images: ticketData.images,
+            createdAt: now,
+          },
+        ]
+      : [];
+
+    const newTicket: SupportTicket = {
+      ...ticketData,
+      id,
+      ticketNumber,
+      status: 'aberto',
+      messages: initialMessages,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setTickets((prev) => [newTicket, ...prev]);
+    return newTicket;
+  };
+
+  const addTicketMessage = (
+    ticketId: string,
+    messageData: Omit<TicketMessage, 'id' | 'createdAt'>
+  ) => {
+    const now = new Date().toISOString();
+    const newMessage: TicketMessage = {
+      ...messageData,
+      id: `msg-${Date.now()}`,
+      createdAt: now,
+    };
+
+    setTickets((prev) =>
+      prev.map((t) => {
+        if (t.id !== ticketId) return t;
+        let nextStatus = t.status;
+        if (messageData.senderRole === 'superadmin' && (t.status === 'aberto' || t.status === 'em_analise')) {
+          nextStatus = 'respondido';
+        } else if (messageData.senderRole === 'agency' && t.status === 'respondido') {
+          nextStatus = 'em_analise';
+        }
+
+        return {
+          ...t,
+          status: nextStatus,
+          updatedAt: now,
+          messages: [...t.messages, newMessage],
+        };
+      })
+    );
+  };
+
+  const updateTicketStatus = (ticketId: string, status: TicketStatus) => {
+    const now = new Date().toISOString();
+    setTickets((prev) =>
+      prev.map((t) => (t.id === ticketId ? { ...t, status, updatedAt: now } : t))
+    );
+  };
+
+  const deleteSupportTicket = (ticketId: string) => {
+    setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+  };
+
+  const sendAgencyChatMessage = (
+    messageData: Omit<AgencyChatMessage, 'id' | 'createdAt'>
+  ): AgencyChatMessage => {
+    const now = new Date().toISOString();
+    const newMessage: AgencyChatMessage = {
+      ...messageData,
+      id: `chat-${Date.now()}`,
+      createdAt: now,
+    };
+
+    setAgencyChatMessages((prev) => [...prev, newMessage]);
+    return newMessage;
+  };
+
   const logoutUser = () => {
     setCurrentUser(null);
     setIsSiteCreatorMode(false);
@@ -613,6 +770,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProperties(INITIAL_PROPERTIES);
     setVisits(INITIAL_VISITS);
     setUsers(INITIAL_USERS);
+    setTickets(INITIAL_TICKETS);
+    setAgencyChatMessages(INITIAL_AGENCY_CHAT);
     setCurrentUser(INITIAL_USERS[0]);
     setSelectedAgencyId('ag-vertice');
     setIsSiteCreatorMode(false);
@@ -626,6 +785,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         properties,
         visits,
         users,
+        tickets,
+        agencyChatMessages,
         currentUser,
         selectedAgencyId,
         currentAgency,
@@ -655,6 +816,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateUser,
         deleteUser,
         addUser,
+        createSupportTicket,
+        addTicketMessage,
+        updateTicketStatus,
+        deleteSupportTicket,
+        sendAgencyChatMessage,
         logoutUser,
         setSelectedAgencyId,
         incrementPropertyView,

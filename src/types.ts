@@ -120,3 +120,68 @@ export interface FilterState {
   agencyId: string; // 'todos' ou id específico
   sortBy: 'mais_buscados' | 'menor_preco' | 'maior_preco' | 'mais_recentes';
 }
+
+// ==========================================
+// SISTEMA DE CHAMADOS & SUPORTE (TICKETS)
+// ==========================================
+export type TicketStatus = 'aberto' | 'em_analise' | 'respondido' | 'resolvido' | 'fechado';
+export type TicketPriority = 'baixa' | 'media' | 'alta' | 'critica';
+export type TicketCategory =
+  | 'cadastro_imovel'
+  | 'simulador'
+  | 'mapa_geolocalizado'
+  | 'login_usuarios'
+  | 'agendamentos'
+  | 'financeiro_planos'
+  | 'bug_layout'
+  | 'outro';
+
+export interface TicketMessage {
+  id: string;
+  senderRole: 'agency' | 'superadmin';
+  senderName: string;
+  senderEmail?: string;
+  senderAgencyId?: string;
+  message: string;
+  images?: string[];
+  createdAt: string;
+}
+
+export interface SupportTicket {
+  id: string; // Ex: "ticket-1001"
+  ticketNumber: number; // Numeração sempre crescente: 1001, 1002, 1003...
+  agencyId: string; // ID da imobiliária (ex: "ag-extrema")
+  agencyName: string; // Razão social
+  agencyTradeName: string; // Nome fantasia
+  agencyCreci: string; // CRECI da imobiliária
+  requesterName: string; // Nome de quem abriu o chamado
+  requesterEmail: string; // E-mail para fins de conversação
+  requesterPhone?: string; // Telefone / WhatsApp
+  title: string; // Assunto / Falha relatada
+  category: TicketCategory; // Categoria da falha
+  siteSection?: string; // Recurso/Página afetada no portal
+  priority: TicketPriority;
+  description: string;
+  images: string[]; // Imagens / prints anexados para visualização
+  status: TicketStatus;
+  messages: TicketMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// CHAT INTER-IMOBILIÁRIAS (REDE B2B)
+// ==========================================
+export interface AgencyChatMessage {
+  id: string;
+  channelId: string; // 'rede-geral' ou 'ag-1_ag-2'
+  senderAgencyId: string;
+  senderAgencyName: string;
+  senderAgencyTradeName: string;
+  senderAgencyLogoUrl?: string;
+  senderAgencyCreci?: string;
+  senderUserName: string;
+  text: string;
+  images?: string[];
+  createdAt: string;
+}

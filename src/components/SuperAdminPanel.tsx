@@ -24,6 +24,8 @@ import {
   Percent,
   RefreshCw,
   LogOut,
+  LifeBuoy,
+  Handshake,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Property, Agency, VisitAppointment, PlanType, SubscriptionStatus } from '../types';
@@ -32,6 +34,8 @@ import { PLAN_DETAILS, SUBSCRIPTION_STATUS_CONFIG, getAgencyPlan, getAgencySubsc
 import { SuperAdminUsersManagementTab } from './SuperAdminUsersManagementTab';
 import { MasterPlanManagementTab } from './MasterPlanManagementTab';
 import { ManageAgencyPlanModal } from './ManageAgencyPlanModal';
+import { SuperAdminTicketsTab } from './SuperAdminTicketsTab';
+import { InterAgencyChatTab } from './InterAgencyChatTab';
 
 interface SuperAdminPanelProps {
   onViewProperty: (property: Property) => void;
@@ -48,6 +52,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     agencies,
     properties,
     visits,
+    tickets,
     updateProperty,
     deleteProperty,
     togglePropertyFeature,
@@ -60,7 +65,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     resetToDefaults,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'properties' | 'agencies' | 'plans' | 'visits' | 'overview'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tickets' | 'agencies' | 'properties' | 'plans' | 'visits' | 'agency_chat' | 'overview'>('users');
 
   // Master Plan Modal State
   const [selectedPlanAgency, setSelectedPlanAgency] = useState<Agency | null>(null);
@@ -327,7 +332,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
         </div>
 
         {/* Global Key Metrics summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-stone-800 relative z-10">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-6 border-t border-stone-800 relative z-10">
           <div className="bg-stone-950/60 border border-stone-800/80 rounded-2xl p-4">
             <div className="flex items-center justify-between text-stone-400 text-xs">
               <span>Total de Imóveis</span>
@@ -357,6 +362,17 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
 
           <div className="bg-stone-950/60 border border-stone-800/80 rounded-2xl p-4">
             <div className="flex items-center justify-between text-stone-400 text-xs">
+              <span>Chamados (#Tickets)</span>
+              <LifeBuoy className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">{tickets.length}</div>
+            <div className="text-[11px] text-amber-400 mt-0.5">
+              {tickets.filter((t) => t.status === 'aberto').length} novos abertos
+            </div>
+          </div>
+
+          <div className="bg-stone-950/60 border border-stone-800/80 rounded-2xl p-4">
+            <div className="flex items-center justify-between text-stone-400 text-xs">
               <span>Visitas no Portal</span>
               <Calendar className="w-4 h-4 text-rose-400" />
             </div>
@@ -378,6 +394,24 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
         >
           <KeyRound className="w-4 h-4" />
           <span>Usuários & Senhas ({users.length})</span>
+        </button>
+
+        {/* Central de Chamados Master */}
+        <button
+          onClick={() => setActiveTab('tickets')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'tickets'
+              ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <LifeBuoy className="w-4 h-4 text-amber-600" />
+          <span>Chamados de Suporte ({tickets.length})</span>
+          {tickets.filter((t) => t.status === 'aberto').length > 0 && (
+            <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+              {tickets.filter((t) => t.status === 'aberto').length}
+            </span>
+          )}
         </button>
 
         <button
@@ -429,6 +463,18 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('agency_chat')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            activeTab === 'agency_chat'
+              ? 'bg-stone-900 text-white shadow-xs'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+          }`}
+        >
+          <Handshake className="w-4 h-4 text-emerald-400" />
+          <span>Chat da Rede B2B</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('overview')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
             activeTab === 'overview'
@@ -444,6 +490,16 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       {/* TAB CONTENT: USERS & PASSWORDS (CRITICAL) */}
       {activeTab === 'users' && (
         <SuperAdminUsersManagementTab agencies={agencies} />
+      )}
+
+      {/* TAB CONTENT: CENTRAL DE CHAMADOS DE SUPORTE */}
+      {activeTab === 'tickets' && (
+        <SuperAdminTicketsTab agencies={agencies} />
+      )}
+
+      {/* TAB CONTENT: CHAT DA REDE B2B */}
+      {activeTab === 'agency_chat' && agencies[0] && (
+        <InterAgencyChatTab currentAgency={agencies[0]} />
       )}
 
       {/* TAB CONTENT: AGENCIES */}
