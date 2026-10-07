@@ -114,14 +114,9 @@ export const SuperAdminLoginModal: React.FC<SuperAdminLoginModalProps> = ({
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-stone-300">
-                Senha Master de Acesso
-              </label>
-              <span className="text-[11px] text-amber-400 font-mono">
-                Padrão: superadmin123
-              </span>
-            </div>
+            <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+              Senha Master de Acesso
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input

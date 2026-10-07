@@ -167,7 +167,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           onClose();
         }, 600);
       } else {
-        setError('Senha de Super Administrador incorreta (padrão: superadmin123).');
+        setError('Senha ou e-mail de Super Administrador incorretos. Verifique suas credenciais.');
       }
       return;
     }
@@ -308,7 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => {
                 setMode('superadmin');
                 setEmail('superadmin@imobirede.com.br');
-                setPassword('superadmin123');
+                setPassword('');
                 setError('');
                 setSuccessMsg('');
               }}
@@ -632,11 +632,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-medium text-stone-700">
                   {mode === 'superadmin' ? 'Senha Master *' : 'Senha *'}
                 </label>
-                {mode === 'superadmin' ? (
-                  <span className="text-[10px] text-amber-700 font-mono font-semibold">
-                    Padrão: superadmin123
-                  </span>
-                ) : (
+                {mode !== 'superadmin' && (
                   <button
                     type="button"
                     onClick={() => {
