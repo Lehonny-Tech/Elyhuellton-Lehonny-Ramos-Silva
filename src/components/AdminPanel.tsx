@@ -190,7 +190,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     ? currentUser.agencyId
     : selectedAgencyId;
 
+  // Active agency: strictly user's agency for agency_admin, or selectedAgencyId for super admin
+  const activeAgency = isAgencyAdmin
+    ? (agencies.find((a) => a.id === currentUser?.agencyId) || currentAgency)
+    : currentAgency;
+
+  // Permitted tabs for Agency Admins (strictly agency-scoped)
+  const allowedAgencyAdminTabs = ['properties', 'new_property', 'visits', 'my_plan', 'tickets', 'agency_chat'];
   const [activeTab, setActiveTab] = useState<'properties' | 'new_property' | 'visits' | 'my_plan' | 'plans_management' | 'agencies' | 'featured_workflow' | 'users' | 'tickets' | 'agency_chat' | 'master_tickets'>('properties');
+  const effectiveActiveTab = (!isSuperAdmin && !allowedAgencyAdminTabs.includes(activeTab)) ? 'properties' : activeTab;
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string>('');
 
@@ -383,19 +391,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return d.toISOString().split('T')[0];
   });
 
-  // Agency properties
-  const currentAgencyProperties = properties.filter((p) => p.agencyId === selectedAgencyId);
+  // Agency properties - STRICTLY isolated to the active agency
+  const currentAgencyProperties = properties.filter((p) => p.agencyId === effectiveAgencyId);
 
-  // Agency visits
-  const currentAgencyVisits = visits.filter((v) => v.agencyId === selectedAgencyId);
+  // Agency visits - STRICTLY isolated to the active agency
+  const currentAgencyVisits = visits.filter((v) => v.agencyId === effectiveAgencyId);
 
   // Current Agency Plan & Permissions
-  const currentAgencyPlan = getAgencyPlan(currentAgency);
-  const currentAgencyStatus = getAgencySubscriptionStatus(currentAgency);
+  const currentAgencyPlan = getAgencyPlan(activeAgency);
+  const currentAgencyStatus = getAgencySubscriptionStatus(activeAgency);
   const currentAgencyPlanDetail = PLAN_DETAILS[currentAgencyPlan];
   const currentAgencyStatusConfig = SUBSCRIPTION_STATUS_CONFIG[currentAgencyStatus];
   const currentAgencyMaxLimit = PLAN_FEATURES[currentAgencyPlan].maxProperties;
-  const propertyLimitCheck = canCreateProperty(currentAgency, currentAgencyProperties.length);
+  const propertyLimitCheck = canCreateProperty(activeAgency, currentAgencyProperties.length);
 
   // Filtered properties for current agency in admin panel
   const adminFilteredProperties = currentAgencyProperties.filter((p) => {
@@ -414,6 +422,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleCreateAgency = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSuperAdmin) {
+      alert('Acesso negado: Apenas o Super Administrador Master pode cadastrar novas imobiliárias na rede.');
+      return;
+    }
     if (!agencyName || !agencyCreci || !agencyWhatsApp) {
       alert('Por favor, preencha Razão Social, CRECI e WhatsApp da imobiliária.');
       return;
@@ -453,6 +465,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const openEditAgencyModal = (agency: Agency) => {
+    if (isAgencyAdmin && agency.id !== currentUser?.agencyId) {
+      alert('Acesso negado: Você só pode editar as informações da sua própria imobiliária.');
+      return;
+    }
     setEditingAgency(agency);
     setEditAgencyName(agency.name);
     setEditAgencyTradeName(agency.tradeName || agency.name);
@@ -494,6 +510,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveAgencyEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAgency) return;
+    if (isAgencyAdmin && editingAgency.id !== currentUser?.agencyId) {
+      alert('Acesso negado: Você só pode editar as informações da sua própria imobiliária.');
+      return;
+    }
     if (!editAgencyName.trim()) {
       alert('A Razão Social da imobiliária não pode ficar vazia.');
       return;
@@ -523,6 +543,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const openFeatureRequestModal = (property: Property) => {
+    if (isAgencyAdmin && property.agencyId !== effectiveAgencyId) {
+      alert('Acesso negado: Você só pode solicitar destaque para imóveis da sua própria imobiliária.');
+      return;
+    }
     const agency = getAgencyById(property.agencyId);
     if (agency && !hasFeature(agency, 'propertyHighlight') && !isSiteCreatorMode) {
       setUpgradeModalState({
@@ -554,8 +578,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveProperty = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAgencyId) {
-      alert('Selecione uma imobiliária para adicionar o imóvel.');
+    if (!effectiveAgencyId) {
+      alert('Erro: Nenhuma imobiliária selecionada ou vinculada.');
       return;
     }
 
@@ -575,7 +599,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       .filter((s) => s.length > 0);
 
     const propData = {
-      agencyId: selectedAgencyId,
+      agencyId: effectiveAgencyId,
       title: formTitle,
       description: formDescription || 'Excelente imóvel em localização privilegiada.',
       type: formType,
@@ -614,11 +638,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     if (editingPropertyId) {
-      updateProperty(editingPropertyId, propData);
+      const existingProp = properties.find((p) => p.id === editingPropertyId);
+      if (isAgencyAdmin && existingProp && existingProp.agencyId !== effectiveAgencyId) {
+        alert('Acesso negado: Você não tem permissão para editar imóveis de outra imobiliária.');
+        return;
+      }
+      updateProperty(editingPropertyId, { ...propData, agencyId: effectiveAgencyId });
       setSuccessNotice('Imóvel atualizado com sucesso!');
       setEditingPropertyId(null);
     } else {
-      const creationCheck = canCreateProperty(currentAgency, currentAgencyProperties.length);
+      const creationCheck = canCreateProperty(activeAgency, currentAgencyProperties.length);
       if (!creationCheck.allowed && !isSiteCreatorMode) {
         setUpgradeModalState({
           isOpen: true,
@@ -649,6 +678,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const startEditProperty = (prop: Property) => {
+    if (isAgencyAdmin && prop.agencyId !== effectiveAgencyId) {
+      alert('Acesso negado: Você só pode gerenciar imóveis pertencentes à sua própria imobiliária.');
+      return;
+    }
     setEditingPropertyId(prop.id);
     setFormTitle(prop.title);
     setFormDescription(prop.description);
@@ -794,10 +827,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <div className="bg-stone-900 text-white rounded-2xl p-6 shadow-md border border-stone-800 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-4">
-            {currentAgency?.logoUrl && (
+            {activeAgency?.logoUrl && (
               <img
-                src={currentAgency.logoUrl}
-                alt={currentAgency.name}
+                src={activeAgency.logoUrl}
+                alt={activeAgency.name}
                 className="w-14 h-14 rounded-xl object-cover border-2 border-stone-700 shrink-0 bg-white"
               />
             )}
@@ -808,11 +841,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
                 <h1 className="text-2xl font-bold">
-                  {currentAgency ? currentAgency.tradeName || currentAgency.name : 'Gestão Imobiliária'}
+                  {activeAgency ? activeAgency.tradeName || activeAgency.name : 'Gestão Imobiliária'}
                 </h1>
-                {currentAgency && (
+                {activeAgency && (
                   <button
-                    onClick={() => openEditAgencyModal(currentAgency)}
+                    onClick={() => openEditAgencyModal(activeAgency)}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white border border-stone-700 transition cursor-pointer"
                     title="Alterar Razão Social, Nome Fantasia e Logotipo desta Imobiliária"
                   >
@@ -822,10 +855,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
               </div>
               <p className="text-xs text-stone-300 mt-1">
-                Razão Social: <span className="text-stone-100 font-medium">{currentAgency?.name}</span> • CRECI:{' '}
-                <span className="font-mono text-emerald-300">{currentAgency?.creci}</span> •{' '}
-                {currentAgency?.city}, {currentAgency?.state} • WhatsApp:{' '}
-                <span className="font-mono text-stone-200">{currentAgency?.whatsapp}</span>
+                Razão Social: <span className="text-stone-100 font-medium">{activeAgency?.name}</span> • CRECI:{' '}
+                <span className="font-mono text-emerald-300">{activeAgency?.creci}</span> •{' '}
+                {activeAgency?.city}, {activeAgency?.state} • WhatsApp:{' '}
+                <span className="font-mono text-stone-200">{activeAgency?.whatsapp}</span>
               </p>
 
               {/* Plan & Capacity Indicator Badges */}
@@ -859,7 +892,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
 
-          {/* Agency Switcher (Super Admin) or Fixed Badge (Agency Admin) */}
+          {/* Agency Switcher (Super Admin) or Exclusive Security Badge (Agency Admin) */}
           <div className="flex flex-wrap items-center gap-2">
             {isSuperAdmin ? (
               <>
@@ -892,11 +925,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
               </>
             ) : (
-              <div className="bg-stone-800/90 border border-stone-700 rounded-xl px-3.5 py-2 text-xs flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-emerald-400" />
+              <div className="bg-stone-800/95 border border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-3 shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                </div>
                 <div>
-                  <div className="text-[10px] text-stone-400 font-semibold uppercase">Sua Imobiliária</div>
-                  <div className="font-bold text-white text-xs">{currentAgency?.tradeName || currentAgency?.name}</div>
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <span>Acesso Exclusivo à Sua Imobiliária</span>
+                  </div>
+                  <div className="font-bold text-white text-xs">{activeAgency?.tradeName || activeAgency?.name}</div>
+                  <div className="text-[10px] text-stone-300 font-mono">
+                    CRECI {activeAgency?.creci} • Gestão 100% Isolada
+                  </div>
                 </div>
               </div>
             )}
@@ -949,7 +989,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <button
           onClick={() => setActiveTab('properties')}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'properties'
+            effectiveActiveTab === 'properties'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-stone-600 hover:text-stone-900'
           }`}
@@ -964,7 +1004,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             setActiveTab('new_property');
           }}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'new_property'
+            effectiveActiveTab === 'new_property'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-stone-600 hover:text-stone-900'
           }`}
@@ -976,14 +1016,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <button
           onClick={() => setActiveTab('visits')}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'visits'
+            effectiveActiveTab === 'visits'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-stone-600 hover:text-stone-900'
           }`}
         >
           <Calendar className="w-4 h-4" />
           <span>Visitas Agendadas ({currentAgencyVisits.length})</span>
-          {!hasFeature(currentAgency, 'scheduling') && (
+          {!hasFeature(activeAgency, 'scheduling') && (
             <span className="text-[10px] bg-stone-100 text-stone-600 border border-stone-300 px-1.5 py-0.2 rounded font-bold">
               Plano Pro
             </span>
@@ -993,7 +1033,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <button
           onClick={() => setActiveTab('my_plan')}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'my_plan'
+            effectiveActiveTab === 'my_plan'
               ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
               : 'border-transparent text-stone-600 hover:text-stone-900'
           }`}
@@ -1007,7 +1047,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <button
             onClick={() => setActiveTab('plans_management')}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === 'plans_management'
+              effectiveActiveTab === 'plans_management'
                 ? 'border-amber-500 text-amber-900 bg-amber-50/80 font-bold'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
@@ -1025,7 +1065,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <button
             onClick={() => setActiveTab('users')}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === 'users'
+              effectiveActiveTab === 'users'
                 ? 'border-amber-500 text-amber-950 bg-amber-100/90 font-black'
                 : 'border-transparent text-amber-800 hover:text-amber-950 hover:bg-amber-50/50'
             }`}
@@ -1035,24 +1075,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </button>
         )}
 
-        <button
-          onClick={() => setActiveTab('agencies')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'agencies'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-stone-600 hover:text-stone-900'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          Imobiliárias da Rede ({agencies.length})
-        </button>
+        {/* Exclusively Super Admin: Todas as Imobiliárias da Rede */}
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('agencies')}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              effectiveActiveTab === 'agencies'
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            Imobiliárias da Rede ({agencies.length})
+          </button>
+        )}
 
         {/* Master Central de Destaques Tab */}
         {isSuperAdmin && (
           <button
             onClick={() => setActiveTab('featured_workflow')}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === 'featured_workflow'
+              effectiveActiveTab === 'featured_workflow'
                 ? 'border-amber-500 text-amber-800 bg-amber-50/70 font-bold'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
@@ -1071,7 +1114,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <button
           onClick={() => setActiveTab('tickets')}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'tickets'
+            effectiveActiveTab === 'tickets'
               ? 'border-emerald-600 text-emerald-800 bg-emerald-50/70 font-bold'
               : 'border-transparent text-stone-600 hover:text-stone-900'
           }`}
@@ -1084,7 +1127,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <button
           onClick={() => setActiveTab('agency_chat')}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-            activeTab === 'agency_chat'
+            effectiveActiveTab === 'agency_chat'
               ? 'border-emerald-600 text-emerald-800 bg-emerald-50/70 font-bold'
               : 'border-transparent text-stone-600 hover:text-stone-900'
           }`}
@@ -1098,7 +1141,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <button
             onClick={() => setActiveTab('master_tickets')}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === 'master_tickets'
+              effectiveActiveTab === 'master_tickets'
                 ? 'border-amber-500 text-amber-950 bg-amber-100 font-black'
                 : 'border-transparent text-amber-800 hover:text-amber-950 hover:bg-amber-50/50'
             }`}
@@ -1110,7 +1153,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       {/* TAB 1: GERENCIAR IMÓVEIS DA IMOBILIÁRIA (com todos os filtros solicitados) */}
-      {activeTab === 'properties' && (
+      {effectiveActiveTab === 'properties' && (
         <div className="space-y-4">
           {/* Admin Specific Filters Bar */}
           <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-xs">
@@ -1126,9 +1169,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-stone-800"
                 >
                   <option value="todas">Todas Cidades</option>
-                  <option value="São Paulo">São Paulo</option>
-                  <option value="Santos">Santos</option>
-                  <option value="Campinas">Campinas</option>
+                  {Array.from(new Set(currentAgencyProperties.map((p) => p.location.city))).filter(Boolean).map((city) => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
                 </select>
               </div>
 
@@ -1417,6 +1460,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </button>
                             <button
                               onClick={() => {
+                                if (isAgencyAdmin && prop.agencyId !== effectiveAgencyId) {
+                                  alert('Acesso negado: Você não tem permissão para excluir imóveis de outra imobiliária.');
+                                  return;
+                                }
                                 if (confirm(`Deseja realmente excluir o imóvel "${prop.title}"?`)) {
                                   deleteProperty(prop.id);
                                 }
@@ -1439,7 +1486,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* TAB 2: CADASTRAR OU EDITAR IMÓVEL COM TODOS OS CAMPOS SOLICITADOS */}
-      {activeTab === 'new_property' && (
+      {effectiveActiveTab === 'new_property' && (
         <div className="space-y-6">
           {!editingPropertyId && !propertyLimitCheck.allowed && !isSiteCreatorMode && (
             <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -2478,9 +2525,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* TAB 3: VISITAS AGENDADAS PARA ESTA IMOBILIÁRIA */}
-      {activeTab === 'visits' && (
+      {effectiveActiveTab === 'visits' && (
         <>
-          {currentAgency && !hasFeature(currentAgency, 'scheduling') && !isSiteCreatorMode ? (
+          {activeAgency && !hasFeature(activeAgency, 'scheduling') && !isSiteCreatorMode ? (
             <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-xs space-y-5">
               <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto border border-amber-200">
                 <Calendar className="w-8 h-8 text-amber-700" />
@@ -2494,7 +2541,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   Agendamento Online de Visitas
                 </h3>
                 <p className="text-sm text-stone-600 leading-relaxed">
-                  A imobiliária <strong>{currentAgency.name}</strong> está atualmente no{' '}
+                  A imobiliária <strong>{activeAgency.name}</strong> está atualmente no{' '}
                   <strong className="text-stone-900">Plano Essencial</strong>, que não inclui a agenda integrada de marcação de visitas online. Faça upgrade para o{' '}
                   <strong className="text-emerald-700">Plano Profissional</strong> para permitir que clientes agendem visitas 24 horas por dia diretamente no portal.
                 </p>
@@ -2616,9 +2663,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* TAB: MEU PLANO (VISÃO DA IMOBILIÁRIA) */}
-      {activeTab === 'my_plan' && currentAgency && (
+      {effectiveActiveTab === 'my_plan' && activeAgency && (
         <AgencyMyPlanView
-          agency={currentAgency}
+          agency={activeAgency}
           propertyCount={currentAgencyProperties.length}
           onOpenUpgradeModal={(requiredPlan, featureTitle) =>
             setUpgradeModalState({
@@ -2631,7 +2678,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* TAB: GESTÃO MASTER DE PLANOS (SUPER ADMIN) */}
-      {activeTab === 'plans_management' && isSuperAdmin && (
+      {effectiveActiveTab === 'plans_management' && isSuperAdmin && (
         <MasterPlanManagementTab
           agencies={agencies}
           properties={properties}
@@ -2647,27 +2694,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* TAB: GESTÃO DE USUÁRIOS & SENHAS MASTER */}
-      {activeTab === 'users' && isSuperAdmin && (
+      {effectiveActiveTab === 'users' && isSuperAdmin && (
         <SuperAdminUsersManagementTab agencies={agencies} />
       )}
 
       {/* TAB: CHAMADOS & SUPORTE DA IMOBILIÁRIA */}
-      {activeTab === 'tickets' && currentAgency && (
-        <AgencySupportTicketsTab currentAgency={currentAgency} />
+      {effectiveActiveTab === 'tickets' && activeAgency && (
+        <AgencySupportTicketsTab currentAgency={activeAgency} />
       )}
 
       {/* TAB: CHAT INTER-IMOBILIÁRIAS (B2B) */}
-      {activeTab === 'agency_chat' && currentAgency && (
-        <InterAgencyChatTab currentAgency={currentAgency} />
+      {effectiveActiveTab === 'agency_chat' && activeAgency && (
+        <InterAgencyChatTab currentAgency={activeAgency} />
       )}
 
       {/* TAB: RECEPÇÃO DE CHAMADOS MASTER (SITE ADMINISTRATORS) */}
-      {activeTab === 'master_tickets' && isSuperAdmin && (
+      {effectiveActiveTab === 'master_tickets' && isSuperAdmin && (
         <SuperAdminTicketsTab agencies={agencies} />
       )}
 
-      {/* TAB 4: CADASTRAR NOVA IMOBILIÁRIA (Multi-empresa total) */}
-      {activeTab === 'agencies' && (
+      {/* TAB 4: CADASTRAR NOVA IMOBILIÁRIA (Multi-empresa total - EXCLUSIVO SUPER ADMIN) */}
+      {effectiveActiveTab === 'agencies' && isSuperAdmin && (
         <div className="space-y-6">
           <form
             onSubmit={handleCreateAgency}
@@ -2977,7 +3024,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* TAB 5: CENTRAL DE DESTAQUES (SUPER ADMIN) */}
-      {activeTab === 'featured_workflow' && isSuperAdmin && (
+      {effectiveActiveTab === 'featured_workflow' && isSuperAdmin && (
         <div className="space-y-6">
           {/* Header Card */}
           <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-amber-950 text-white p-6 rounded-2xl border border-amber-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -3762,7 +3809,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         featureKey={upgradeModalState.featureKey}
         featureTitle={upgradeModalState.featureTitle}
         requiredPlan={upgradeModalState.requiredPlan}
-        agency={currentAgency || null}
+        agency={activeAgency || null}
       />
 
       {managePlanAgency && (

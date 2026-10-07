@@ -226,6 +226,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(() => {
     try {
+      const savedUserStr = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+      if (savedUserStr) {
+        const parsedUser = JSON.parse(savedUserStr);
+        if (parsedUser.role === 'agency_admin' && parsedUser.agencyId) {
+          return parsedUser.agencyId;
+        }
+      }
       return localStorage.getItem(STORAGE_KEYS.SELECTED_AGENCY) || 'ag-extrema';
     } catch {
       return 'ag-extrema';
@@ -310,12 +317,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem(STORAGE_KEYS.SITE_CREATOR_MODE, String(isSiteCreatorMode));
   }, [isSiteCreatorMode]);
 
+  // Sync selectedAgencyId with currentUser.agencyId for agency_admin
+  useEffect(() => {
+    if (currentUser?.role === 'agency_admin' && currentUser.agencyId) {
+      setSelectedAgencyId(currentUser.agencyId);
+    }
+  }, [currentUser]);
+
+  const setSelectedAgencyIdSafe = (agencyId: string | null) => {
+    // Security: Agency admin cannot change selected agency to other companies
+    if (currentUser?.role === 'agency_admin' && currentUser.agencyId) {
+      setSelectedAgencyId(currentUser.agencyId);
+      return;
+    }
+    setSelectedAgencyId(agencyId);
+  };
+
   const currentAgency =
     currentUser?.role === 'agency_admin' && currentUser?.agencyId
-      ? agencies.find((a) => a.id === currentUser.agencyId) ||
-        agencies.find((a) => a.id === selectedAgencyId) ||
-        agencies[0] ||
-        null
+      ? agencies.find((a) => a.id === currentUser.agencyId) || null
       : agencies.find((a) => a.id === selectedAgencyId) || agencies[0] || null;
 
   const getAgencyById = (agencyId: string) => {
@@ -323,6 +343,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addAgency = (agencyData: Omit<Agency, 'id'>): Agency => {
+    if (!isSuperAdmin) {
+      throw new Error('Apenas o Super Administrador pode cadastrar novas imobiliárias na rede.');
+    }
     const id = `ag-${Date.now()}`;
     const newAgency: Agency = { ...agencyData, id };
     setAgencies((prev) => [newAgency, ...prev]);
@@ -330,10 +353,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateAgency = (id: string, updates: Partial<Agency>) => {
-    setAgencies((prev) => prev.map((ag) => (ag.id === id ? { ...ag, ...updates } : ag)));
+    // Security: Agency admin can only update their own agency profile
+    if (currentUser?.role === 'agency_admin' && currentUser.agencyId && id !== currentUser.agencyId) {
+      console.warn('Acesso negado: Administrador de imobiliária só pode alterar dados da sua própria empresa.');
+      return;
+    }
+
+    // Security: Agency admin cannot modify subscription plan or billing status
+    const safeUpdates = currentUser?.role === 'agency_admin'
+      ? { ...updates, plano: undefined, status_assinatura: undefined, subscriptionRenewalDate: undefined }
+      : updates;
+
+    const sanitizedUpdates: Partial<Agency> = {};
+    (Object.keys(safeUpdates) as (keyof Agency)[]).forEach((key) => {
+      if (safeUpdates[key] !== undefined) {
+        (sanitizedUpdates as any)[key] = safeUpdates[key];
+      }
+    });
+
+    setAgencies((prev) => prev.map((ag) => (ag.id === id ? { ...ag, ...sanitizedUpdates } : ag)));
   };
 
   const deleteAgency = (agencyId: string) => {
+    if (!isSuperAdmin) {
+      console.warn('Acesso negado: Apenas o Super Administrador pode excluir imobiliárias.');
+      return;
+    }
     setAgencies((prev) => prev.filter((ag) => ag.id !== agencyId));
     setProperties((prev) => prev.filter((p) => p.agencyId !== agencyId));
     setVisits((prev) => prev.filter((v) => v.agencyId !== agencyId));
@@ -349,6 +394,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     status_assinatura: SubscriptionStatus = 'ACTIVE',
     renewalDate?: string
   ) => {
+    if (!isSuperAdmin) {
+      console.warn('Acesso negado: Apenas o Super Administrador pode gerenciar planos de imobiliárias.');
+      return;
+    }
     setAgencies((prev) =>
       prev.map((ag) => {
         if (ag.id !== agencyId) return ag;
@@ -366,11 +415,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addProperty = (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'searchCount'>): Property => {
-    const agency = getAgencyById(propertyData.agencyId);
+    // Security: Agency admin must strictly create properties for their own agency
+    const targetAgencyId =
+      currentUser?.role === 'agency_admin' && currentUser.agencyId
+        ? currentUser.agencyId
+        : propertyData.agencyId;
+
+    const agency = getAgencyById(targetAgencyId);
     
     // Regra central de controle de limite de imóveis por plano (backend/regras de segurança)
     if (agency && !isSiteCreatorMode) {
-      const currentCount = properties.filter((p) => p.agencyId === propertyData.agencyId).length;
+      const currentCount = properties.filter((p) => p.agencyId === targetAgencyId).length;
       const check = canCreateProperty(agency, currentCount);
       if (!check.allowed) {
         throw new Error(check.reason || 'Limite de cadastro de imóveis atingido para o plano desta imobiliária.');
@@ -383,6 +438,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const newProperty: Property = {
       ...propertyData,
+      agencyId: targetAgencyId,
       id,
       code,
       searchCount: Math.floor(Math.random() * 40) + 10,
@@ -394,25 +450,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateProperty = (id: string, updates: Partial<Property>) => {
-    setProperties((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    setProperties((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        // Security check: Agency admin can ONLY update properties of their own agency!
+        if (currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
+          console.warn('Acesso negado: Administrador de imobiliária não pode alterar imóvel de outra empresa.');
+          return p;
+        }
+        // Security check: Agency admin cannot transfer property to another agency
+        const safeUpdates =
+          currentUser?.role === 'agency_admin' && currentUser.agencyId
+            ? { ...updates, agencyId: currentUser.agencyId }
+            : updates;
+        return { ...p, ...safeUpdates };
+      })
+    );
   };
 
   const deleteProperty = (id: string) => {
-    setProperties((prev) => prev.filter((p) => p.id !== id));
+    setProperties((prev) =>
+      prev.filter((p) => {
+        if (p.id !== id) return true;
+        // Security check: Agency admin can ONLY delete properties of their own agency!
+        if (currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
+          console.warn('Acesso negado: Administrador de imobiliária não pode excluir imóvel de outra empresa.');
+          return true;
+        }
+        return false;
+      })
+    );
   };
 
   const requestPropertyFeature = (propertyId: string, notes?: string) => {
     setProperties((prev) =>
-      prev.map((p) =>
-        p.id === propertyId
-          ? {
-              ...p,
-              featuredRequestStatus: 'pending' as const,
-              featuredRequestedAt: new Date().toISOString(),
-              featuredRequestNotes: notes || p.featuredRequestNotes,
-            }
-          : p
-      )
+      prev.map((p) => {
+        if (p.id !== propertyId) return p;
+        if (currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
+          console.warn('Acesso negado: Imóvel não pertence à sua imobiliária.');
+          return p;
+        }
+        return {
+          ...p,
+          featuredRequestStatus: 'pending' as const,
+          featuredRequestedAt: new Date().toISOString(),
+          featuredRequestNotes: notes || p.featuredRequestNotes,
+        };
+      })
     );
   };
 
@@ -504,7 +588,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateVisitStatus = (visitId: string, status: VisitAppointment['status']) => {
-    setVisits((prev) => prev.map((v) => (v.id === visitId ? { ...v, status } : v)));
+    setVisits((prev) =>
+      prev.map((v) => {
+        if (v.id !== visitId) return v;
+        if (currentUser?.role === 'agency_admin' && currentUser.agencyId && v.agencyId !== currentUser.agencyId) {
+          console.warn('Acesso negado: Não é permitido alterar agendamento de outra imobiliária.');
+          return v;
+        }
+        return { ...v, status };
+      })
+    );
   };
 
   const toggleFavorite = (propertyId: string): boolean => {
@@ -858,7 +951,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteSupportTicket,
         sendAgencyChatMessage,
         logoutUser,
-        setSelectedAgencyId,
+        setSelectedAgencyId: setSelectedAgencyIdSafe,
         incrementPropertyView,
         getAgencyById,
         getVisitsForPropertyAndDate,
