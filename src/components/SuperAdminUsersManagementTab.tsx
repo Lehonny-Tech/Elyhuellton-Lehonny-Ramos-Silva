@@ -31,7 +31,7 @@ interface SuperAdminUsersManagementTabProps {
 export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTabProps> = ({
   agencies,
 }) => {
-  const { users, updateUserPassword, setUserFirstAccess, updateUser, deleteUser, addUser, currentUser } = useApp();
+  const { users, updateUserPassword, updateUser, deleteUser, addUser, currentUser } = useApp();
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,10 +62,8 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
   const [createAgencyId, setCreateAgencyId] = useState<string>(agencies[0]?.id || '');
   const [createFirstAccess, setCreateFirstAccess] = useState(true);
 
-  // First Access Dialog Box States
+  // First Access Dialog Box State (No ato do cadastro)
   const [isFirstAccessInfoModalOpen, setIsFirstAccessInfoModalOpen] = useState(false);
-  const [firstAccessModalUser, setFirstAccessModalUser] = useState<User | null>(null);
-  const [firstAccessModalPassword, setFirstAccessModalPassword] = useState('');
 
   // Visible Passwords map (for super admin auditing on table)
   const [visiblePasswordIds, setVisiblePasswordIds] = useState<Record<string, boolean>>({});
@@ -378,7 +376,6 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                 <th className="py-3.5 px-4">Imobiliária Vinculada</th>
                 <th className="py-3.5 px-4">Telefone / WhatsApp</th>
                 <th className="py-3.5 px-4">Senha Atual (Master)</th>
-                <th className="py-3.5 px-4">Primeiro Acesso</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Ações Master</th>
               </tr>
@@ -386,7 +383,7 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
             <tbody className="divide-y divide-stone-100">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-stone-400">
+                  <td colSpan={7} className="py-10 text-center text-stone-400">
                     Nenhum usuário encontrado com os filtros atuais.
                   </td>
                 </tr>
@@ -511,33 +508,6 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                             title={isVisiblePassword ? 'Ocultar senha' : 'Exibir senha'}
                           >
                             {isVisiblePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* Primeiro Acesso */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              user.firstAccess
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                : 'bg-stone-100 text-stone-600 border border-stone-200'
-                            }`}
-                          >
-                            {user.firstAccess ? 'Pendente 1º Acesso' : 'Concluído'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFirstAccessModalUser(user);
-                              setFirstAccessModalPassword('');
-                            }}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[11px] font-bold transition cursor-pointer"
-                            title="Abrir caixa de diálogo do Primeiro Acesso"
-                          >
-                            <KeyRound className="w-3 h-3 text-amber-700" />
-                            <span>Primeiro Acesso</span>
                           </button>
                         </div>
                       </td>
@@ -1116,112 +1086,6 @@ export const SuperAdminUsersManagementTab: React.FC<SuperAdminUsersManagementTab
                 >
                   Confirmar e Fechar
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: CAIXA DE DIÁLOGO "PRIMEIRO ACESSO" DO USUÁRIO SELECIONADO */}
-      {firstAccessModalUser && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden animate-fade-in">
-            <div className="bg-stone-900 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-stone-950 font-bold">
-                  <KeyRound className="w-5 h-5 text-stone-950" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-white">Primeiro Acesso</h3>
-                  <p className="text-xs text-stone-400">Administrador de Imobiliária ou Corretora</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setFirstAccessModalUser(null)}
-                className="text-stone-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 text-xs">
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1">
-                <div className="font-bold text-stone-900 text-sm">{firstAccessModalUser.name}</div>
-                <div className="text-stone-600 font-mono text-[11px]">{firstAccessModalUser.email}</div>
-                <div className="text-[11px] text-stone-500 pt-1 flex items-center justify-between">
-                  <span>Status do 1º Acesso:</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-bold ${
-                      firstAccessModalUser.firstAccess
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    }`}
-                  >
-                    {firstAccessModalUser.firstAccess ? 'Pendente de Primeiro Acesso' : 'Concluído / Senha Ativa'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 text-[11px] leading-relaxed">
-                Este botão fará com que o administrador ao realizar o primeiro acesso possa alterar a senha, sem a alteração dos dados, configuração, poderes e limites já existentes.
-              </div>
-
-              <div className="space-y-2 pt-1 border-t border-stone-200">
-                <label className="block text-xs font-semibold text-stone-700">
-                  Definir / Trocar Senha Agora (Opcional):
-                </label>
-                <input
-                  type="text"
-                  placeholder="Digite nova senha para teste imediato"
-                  value={firstAccessModalPassword}
-                  onChange={(e) => setFirstAccessModalPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-mono focus:outline-emerald-600"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-between gap-2 border-t border-stone-200 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextVal = !firstAccessModalUser.firstAccess;
-                    setUserFirstAccess(firstAccessModalUser.id, nextVal);
-                    setFirstAccessModalUser({ ...firstAccessModalUser, firstAccess: nextVal });
-                    showNotification(
-                      `Primeiro acesso ${nextVal ? 'ativado' : 'desativado'} para "${firstAccessModalUser.name}"!`,
-                      'success'
-                    );
-                  }}
-                  className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold transition cursor-pointer text-xs"
-                >
-                  {firstAccessModalUser.firstAccess ? 'Desmarcar 1º Acesso' : 'Ativar 1º Acesso'}
-                </button>
-
-                <div className="flex items-center gap-2">
-                  {firstAccessModalPassword.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (firstAccessModalPassword.trim().length < 4) {
-                          showNotification('A senha deve ter no mínimo 4 caracteres.', 'error');
-                          return;
-                        }
-                        updateUserPassword(firstAccessModalUser.id, firstAccessModalPassword.trim());
-                        showNotification(`Senha alterada com sucesso no Primeiro Acesso!`, 'success');
-                        setFirstAccessModalUser(null);
-                      }}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition cursor-pointer text-xs shadow-xs"
-                    >
-                      Salvar Senha
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setFirstAccessModalUser(null)}
-                    className="px-4 py-2 border border-stone-300 text-stone-700 rounded-xl font-semibold hover:bg-stone-100 transition cursor-pointer text-xs"
-                  >
-                    Fechar
-                  </button>
-                </div>
               </div>
             </div>
           </div>
