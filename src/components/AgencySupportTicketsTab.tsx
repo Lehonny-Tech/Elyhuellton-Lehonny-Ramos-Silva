@@ -23,6 +23,8 @@ import {
   Mail,
   Eye,
   Maximize2,
+  KeyRound,
+  UserCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SupportTicket, TicketCategory, TicketPriority, TicketStatus, Agency } from '../types';
@@ -36,19 +38,18 @@ export const CATEGORY_LABELS: Record<TicketCategory, { label: string; iconColor:
   cadastro_imovel: { label: 'Cadastro de Imóvel', iconColor: 'text-emerald-600' },
   simulador: { label: 'Simulador de Financiamento', iconColor: 'text-blue-600' },
   mapa_geolocalizado: { label: 'Mapa Geolocalizado', iconColor: 'text-amber-600' },
-  login_usuarios: { label: 'Login & Senhas', iconColor: 'text-purple-600' },
+  login_usuarios: { label: 'Login & Redefinição de Senha', iconColor: 'text-purple-600' },
   agendamentos: { label: 'Agendamento de Visitas', iconColor: 'text-rose-600' },
   financeiro_planos: { label: 'Planos & Financeiro', iconColor: 'text-emerald-700' },
   bug_layout: { label: 'Falha Visual / Layout', iconColor: 'text-indigo-600' },
   outro: { label: 'Outro Chamado', iconColor: 'text-stone-600' },
 };
 
+// Remodelado para os 3 status solicitados: 1. Aberto; 2. Atribuído; 3. Resolvido
 export const STATUS_LABELS: Record<TicketStatus, { label: string; badgeClass: string }> = {
-  aberto: { label: 'Aberto', badgeClass: 'bg-amber-100 text-amber-900 border-amber-300' },
-  em_analise: { label: 'Em Análise', badgeClass: 'bg-blue-100 text-blue-900 border-blue-300' },
-  respondido: { label: 'Respondido', badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
-  resolvido: { label: 'Resolvido', badgeClass: 'bg-stone-100 text-stone-700 border-stone-300' },
-  fechado: { label: 'Fechado', badgeClass: 'bg-stone-200 text-stone-600 border-stone-300' },
+  aberto: { label: '1. Aberto', badgeClass: 'bg-amber-100 text-amber-900 border-amber-300' },
+  atribuido: { label: '2. Atribuído', badgeClass: 'bg-blue-100 text-blue-900 border-blue-300' },
+  resolvido: { label: '3. Resolvido', badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
 };
 
 export const PRIORITY_LABELS: Record<TicketPriority, { label: string; badgeClass: string }> = {
@@ -231,21 +232,49 @@ export const AgencySupportTicketsTab: React.FC<AgencySupportTicketsTabProps> = (
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormRequesterName(currentUser?.name || currentAgency.tradeName);
-            setFormRequesterEmail(currentUser?.email || currentAgency.email);
-            setFormRequesterPhone(currentAgency.whatsapp || currentAgency.phone || '');
-            setIsCreateModalOpen(true);
-          }}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-sm self-start sm:self-auto"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Abrir Chamado / Solicitação de Reparo</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <button
+            onClick={() => {
+              setFormTitle('Redefinição de Senha');
+              setFormCategory('login_usuarios');
+              setFormSiteSection('Painel da Imobiliária > Redefinição de Senha');
+              setFormPriority('alta');
+              setFormDescription('Solicito a redefinição da senha de acesso para o administrador/corretor desta imobiliária.');
+              setFormRequesterName(currentUser?.name || currentAgency.tradeName);
+              setFormRequesterEmail(currentUser?.email || currentAgency.email);
+              setFormRequesterPhone(currentAgency.whatsapp || currentAgency.phone || '');
+              setFormImages([]);
+              setIsCreateModalOpen(true);
+            }}
+            className="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs"
+            title="Abrir chamado para redefinição de senha esquecida"
+          >
+            <KeyRound className="w-4 h-4 text-stone-950" />
+            <span>Redefinição de Senha</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setFormTitle('');
+              setFormCategory('cadastro_imovel');
+              setFormSiteSection('Painel da Imobiliária > Cadastro de Imóvel');
+              setFormPriority('media');
+              setFormDescription('');
+              setFormRequesterName(currentUser?.name || currentAgency.tradeName);
+              setFormRequesterEmail(currentUser?.email || currentAgency.email);
+              setFormRequesterPhone(currentAgency.whatsapp || currentAgency.phone || '');
+              setFormImages([]);
+              setIsCreateModalOpen(true);
+            }}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-sm"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Abrir Chamado / Correção</span>
+          </button>
+        </div>
       </div>
 
-      {/* Summary KPI Badges */}
+      {/* Summary KPI Badges remodelados para 3 status */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-xs">
           <span className="text-[11px] font-semibold text-stone-500 block">Total de Chamados</span>
@@ -257,30 +286,30 @@ export const AgencySupportTicketsTab: React.FC<AgencySupportTicketsTabProps> = (
         </div>
 
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-amber-800 block">Em Aberto / Em Análise</span>
+          <span className="text-[11px] font-semibold text-amber-800 block">1. Aberto</span>
           <div className="text-2xl font-bold text-amber-900 mt-1 flex items-center gap-2">
             <Clock className="w-5 h-5 text-amber-600" />
-            <span>{agencyTickets.filter((t) => t.status === 'aberto' || t.status === 'em_analise').length}</span>
+            <span>{agencyTickets.filter((t) => t.status === 'aberto').length}</span>
           </div>
-          <span className="text-[10px] text-amber-700">Aguardando resolução</span>
+          <span className="text-[10px] text-amber-700">Aguardando atendimento</span>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-blue-800 block">Respondidos pelo Suporte</span>
+          <span className="text-[11px] font-semibold text-blue-800 block">2. Atribuído</span>
           <div className="text-2xl font-bold text-blue-900 mt-1 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-blue-600" />
-            <span>{agencyTickets.filter((t) => t.status === 'respondido').length}</span>
+            <UserCheck className="w-5 h-5 text-blue-600" />
+            <span>{agencyTickets.filter((t) => t.status === 'atribuido').length}</span>
           </div>
-          <span className="text-[10px] text-blue-700">Nova resposta disponível</span>
+          <span className="text-[10px] text-blue-700">Com administrador responsável</span>
         </div>
 
-        <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-stone-500 block">Chamados Resolvidos</span>
-          <div className="text-2xl font-bold text-stone-800 mt-1 flex items-center gap-2">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-xs">
+          <span className="text-[11px] font-semibold text-emerald-800 block">3. Resolvido</span>
+          <div className="text-2xl font-bold text-emerald-900 mt-1 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             <span>{agencyTickets.filter((t) => t.status === 'resolvido').length}</span>
           </div>
-          <span className="text-[10px] text-stone-400">Falhas solucionadas</span>
+          <span className="text-[10px] text-emerald-700">Falhas e solicitações resolvidas</span>
         </div>
       </div>
 
@@ -303,11 +332,10 @@ export const AgencySupportTicketsTab: React.FC<AgencySupportTicketsTabProps> = (
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white font-medium cursor-pointer"
           >
-            <option value="all">Todos os Status</option>
-            <option value="aberto">Aberto</option>
-            <option value="em_analise">Em Análise</option>
-            <option value="respondido">Respondido</option>
-            <option value="resolvido">Resolvido</option>
+            <option value="all">Todos os Status (3 fases)</option>
+            <option value="aberto">1. Aberto</option>
+            <option value="atribuido">2. Atribuído</option>
+            <option value="resolvido">3. Resolvido</option>
           </select>
 
           <select
@@ -359,6 +387,13 @@ export const AgencySupportTicketsTab: React.FC<AgencySupportTicketsTabProps> = (
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusCfg.badgeClass}`}>
                       {statusCfg.label}
                     </span>
+
+                    {ticket.assignedTo && (
+                      <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                        <UserCheck className="w-3 h-3 text-blue-600" />
+                        <span>Atribuído a: {ticket.assignedTo}</span>
+                      </span>
+                    )}
 
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${priorityCfg.badgeClass}`}>
                       {priorityCfg.label}
@@ -656,6 +691,36 @@ export const AgencySupportTicketsTab: React.FC<AgencySupportTicketsTabProps> = (
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* 3 Status Phases Stepper */}
+            <div className="bg-stone-950 px-5 py-2.5 border-b border-stone-800 text-xs">
+              <div className="flex items-center justify-between text-[11px] gap-2 flex-wrap">
+                <div className={`flex items-center gap-1.5 ${selectedTicket.status === 'aberto' ? 'text-amber-400 font-bold' : 'text-emerald-400 font-semibold'}`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${selectedTicket.status === 'aberto' ? 'bg-amber-500 text-stone-950 ring-2 ring-amber-400/50' : 'bg-emerald-600 text-white'}`}>
+                    1
+                  </span>
+                  <span>1. Aberto</span>
+                </div>
+
+                <div className="text-stone-600 font-mono">→</div>
+
+                <div className={`flex items-center gap-1.5 ${selectedTicket.status === 'atribuido' ? 'text-blue-400 font-bold' : selectedTicket.status === 'resolvido' ? 'text-emerald-400 font-semibold' : 'text-stone-500'}`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${selectedTicket.status === 'atribuido' ? 'bg-blue-500 text-white ring-2 ring-blue-400/50' : selectedTicket.status === 'resolvido' ? 'bg-emerald-600 text-white' : 'bg-stone-800 text-stone-400'}`}>
+                    2
+                  </span>
+                  <span>2. Atribuído {selectedTicket.assignedTo ? `(${selectedTicket.assignedTo})` : ''}</span>
+                </div>
+
+                <div className="text-stone-600 font-mono">→</div>
+
+                <div className={`flex items-center gap-1.5 ${selectedTicket.status === 'resolvido' ? 'text-emerald-400 font-bold' : 'text-stone-500'}`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${selectedTicket.status === 'resolvido' ? 'bg-emerald-500 text-white ring-2 ring-emerald-400/50' : 'bg-stone-800 text-stone-400'}`}>
+                    3
+                  </span>
+                  <span>3. Resolvido</span>
+                </div>
+              </div>
             </div>
 
             {/* Conversation Messages Thread */}

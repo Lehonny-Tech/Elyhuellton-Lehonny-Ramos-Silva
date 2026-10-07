@@ -174,6 +174,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     togglePropertyFeature,
     visits,
     updateVisitStatus,
+    updateUserPassword,
     isSiteCreatorMode,
     setIsSiteCreatorMode,
     getAgencyById,
@@ -201,6 +202,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const effectiveActiveTab = (!isSuperAdmin && !allowedAgencyAdminTabs.includes(activeTab)) ? 'properties' : activeTab;
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string>('');
+
+  // Caixa de Diálogo "Primeiro Acesso" para Administrador de Imobiliária
+  const [isFirstAccessModalOpen, setIsFirstAccessModalOpen] = useState(
+    Boolean(currentUser?.firstAccess && currentUser?.role === 'agency_admin')
+  );
+  const [firstAccessPassword, setFirstAccessPassword] = useState('');
+  const [firstAccessConfirm, setFirstAccessConfirm] = useState('');
+  const [firstAccessError, setFirstAccessError] = useState('');
+  const [firstAccessSuccess, setFirstAccessSuccess] = useState('');
+
+  const handleFirstAccessSavePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFirstAccessError('');
+    setFirstAccessSuccess('');
+
+    if (!firstAccessPassword.trim() || firstAccessPassword.trim().length < 4) {
+      setFirstAccessError('A nova senha deve ter no mínimo 4 caracteres.');
+      return;
+    }
+
+    if (firstAccessPassword !== firstAccessConfirm) {
+      setFirstAccessError('As senhas digitadas não coincidem.');
+      return;
+    }
+
+    if (!currentUser) return;
+
+    const ok = updateUserPassword(currentUser.id, firstAccessPassword.trim());
+    if (ok) {
+      setFirstAccessSuccess('Senha alterada com sucesso! Primeiro acesso concluído. Seus dados, poderes e limites continuam 100% preservados.');
+      setTimeout(() => {
+        setIsFirstAccessModalOpen(false);
+        setFirstAccessSuccess('');
+        setFirstAccessPassword('');
+        setFirstAccessConfirm('');
+      }, 2500);
+    } else {
+      setFirstAccessError('Erro ao atualizar a senha.');
+    }
+  };
 
   // Master Admin Plan Management Modal State
   const [managePlanAgency, setManagePlanAgency] = useState<Agency | null>(null);
@@ -925,19 +966,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
               </>
             ) : (
-              <div className="bg-stone-800/95 border border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-3 shadow-sm">
-                <div className="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                </div>
-                <div>
-                  <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                    <span>Acesso Exclusivo à Sua Imobiliária</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="bg-stone-800/95 border border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-3 shadow-sm">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   </div>
-                  <div className="font-bold text-white text-xs">{activeAgency?.tradeName || activeAgency?.name}</div>
-                  <div className="text-[10px] text-stone-300 font-mono">
-                    CRECI {activeAgency?.creci} • Gestão 100% Isolada
+                  <div>
+                    <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                      <span>Acesso Exclusivo à Sua Imobiliária</span>
+                    </div>
+                    <div className="font-bold text-white text-xs">{activeAgency?.tradeName || activeAgency?.name}</div>
+                    <div className="text-[10px] text-stone-300 font-mono">
+                      CRECI {activeAgency?.creci} • Gestão 100% Isolada
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsFirstAccessModalOpen(true)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                    currentUser?.firstAccess
+                      ? 'bg-amber-400 hover:bg-amber-300 text-stone-950 border border-amber-500 ring-2 ring-amber-300/50 animate-pulse'
+                      : 'bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700'
+                  }`}
+                  title="Abrir caixa de diálogo do Primeiro Acesso"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{currentUser?.firstAccess ? 'Primeiro Acesso (Trocar Senha)' : 'Primeiro Acesso'}</span>
+                </button>
               </div>
             )}
           </div>
@@ -3826,6 +3883,100 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             setTimeout(() => setSuccessNotice(''), 4500);
           }}
         />
+      )}
+
+      {/* CAIXA DE DIÁLOGO "PRIMEIRO ACESSO" (ADMINISTRADOR DE IMOBILIÁRIA) */}
+      {isFirstAccessModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden animate-fade-in">
+            <div className="bg-stone-900 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-stone-950 font-bold">
+                  <KeyRound className="w-5 h-5 text-stone-950" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">Primeiro Acesso</h3>
+                  <p className="text-xs text-amber-400">Definição Segura da Nova Senha</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFirstAccessModalOpen(false)}
+                className="text-stone-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFirstAccessSavePassword} className="p-6 space-y-4 text-xs">
+              {firstAccessError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl">
+                  {firstAccessError}
+                </div>
+              )}
+              {firstAccessSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>{firstAccessSuccess}</span>
+                </div>
+              )}
+
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-950 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-xs text-emerald-900">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  <span>Poderes e Limites 100% Preservados</span>
+                </div>
+                <p className="text-[11px] text-emerald-800 leading-relaxed">
+                  Bem-vindo(a), <strong>{currentUser?.name}</strong>! Este botão e caixa de diálogo de <strong>Primeiro Acesso</strong> permitem que você altere sua senha de acesso com segurança sem qualquer alteração dos dados cadastrais, configurações, poderes administrativos e limites de imóveis já existentes na sua imobiliária ({activeAgency?.tradeName || activeAgency?.name}).
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Nova Senha Pessoal *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Mínimo de 4 caracteres"
+                  value={firstAccessPassword}
+                  onChange={(e) => setFirstAccessPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-mono focus:outline-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Confirmar Nova Senha *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repita a nova senha"
+                  value={firstAccessConfirm}
+                  onChange={(e) => setFirstAccessConfirm(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-mono focus:outline-emerald-600"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-between gap-2 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => setIsFirstAccessModalOpen(false)}
+                  className="px-4 py-2 border border-stone-300 text-stone-700 rounded-xl font-semibold hover:bg-stone-100 transition cursor-pointer"
+                >
+                  Lembrar Depois
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Salvar Nova Senha</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -72,8 +72,9 @@ interface AppContextType {
     ticketId: string,
     message: Omit<TicketMessage, 'id' | 'createdAt'>
   ) => void;
-  updateTicketStatus: (ticketId: string, status: TicketStatus) => void;
+  updateTicketStatus: (ticketId: string, status: TicketStatus, assignedTo?: string) => void;
   deleteSupportTicket: (ticketId: string) => void;
+  setUserFirstAccess: (userId: string, firstAccess: boolean) => void;
   sendAgencyChatMessage: (
     messageData: Omit<AgencyChatMessage, 'id' | 'createdAt'>
   ) => AgencyChatMessage;
@@ -257,7 +258,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [tickets, setTickets] = useState<SupportTicket[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TICKETS);
-      return saved ? JSON.parse(saved) : INITIAL_TICKETS;
+      if (!saved) return INITIAL_TICKETS;
+      const parsed: any[] = JSON.parse(saved);
+      // Remodel legacy status to the 3 mandatory statuses: 'aberto', 'atribuido', 'resolvido'
+      return parsed.map((t) => {
+        let status: TicketStatus = t.status;
+        if (t.status === 'em_analise' || t.status === 'respondido') {
+          status = 'atribuido';
+        } else if (t.status === 'fechado') {
+          status = 'resolvido';
+        }
+        return {
+          ...t,
+          status,
+          assignedTo: t.assignedTo || (status === 'atribuido' ? 'Equipe de Suporte Master' : undefined),
+        };
+      });
     } catch {
       return INITIAL_TICKETS;
     }
@@ -748,12 +764,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!newPassword || newPassword.trim().length === 0) return false;
     const cleanPassword = newPassword.trim();
     setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, password: cleanPassword } : u))
+      prev.map((u) => (u.id === userId ? { ...u, password: cleanPassword, firstAccess: false } : u))
     );
     if (currentUser?.id === userId) {
-      setCurrentUser((prev) => (prev ? { ...prev, password: cleanPassword } : null));
+      setCurrentUser((prev) => (prev ? { ...prev, password: cleanPassword, firstAccess: false } : null));
     }
     return true;
+  };
+
+  const setUserFirstAccess = (userId: string, firstAccess: boolean) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, firstAccess } : u))
+    );
+    if (currentUser?.id === userId) {
+      setCurrentUser((prev) => (prev ? { ...prev, firstAccess } : null));
+    }
   };
 
   const updateUser = (userId: string, updates: Partial<User>) => {
@@ -773,7 +798,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return true;
   };
 
-  const addUser = (userData: Omit<User, 'id' | 'favorites'> & { favorites?: string[] }): User => {
+  const addUser = (userData: Omit<User, 'id' | 'favorites'> & { favorites?: string[]; firstAccess?: boolean }): User => {
     const id = `user-${Date.now()}`;
     const newUser: User = {
       ...userData,
@@ -788,6 +813,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       favorites: userData.favorites || [],
       createdAt: new Date().toISOString().split('T')[0],
       status: userData.status || 'active',
+      firstAccess: userData.firstAccess ?? (userData.role === 'agency_admin' ? true : false),
     };
     setUsers((prev) => [...prev, newUser]);
     return newUser;
@@ -807,7 +833,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? [
           {
             id: `msg-${Date.now()}`,
-            senderRole: 'agency',
+            senderRole: ticketData.requesterRole === 'client' ? 'client' : 'agency',
             senderName: ticketData.requesterName,
             senderEmail: ticketData.requesterEmail,
             senderAgencyId: ticketData.agencyId,
@@ -847,15 +873,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       prev.map((t) => {
         if (t.id !== ticketId) return t;
         let nextStatus = t.status;
-        if (messageData.senderRole === 'superadmin' && (t.status === 'aberto' || t.status === 'em_analise')) {
-          nextStatus = 'respondido';
-        } else if (messageData.senderRole === 'agency' && t.status === 'respondido') {
-          nextStatus = 'em_analise';
+        let assignedTo = t.assignedTo;
+        if (messageData.senderRole === 'superadmin') {
+          if (t.status === 'aberto') {
+            nextStatus = 'atribuido';
+          }
+          if (!assignedTo) {
+            assignedTo = messageData.senderName;
+          }
         }
 
         return {
           ...t,
           status: nextStatus,
+          assignedTo,
           updatedAt: now,
           messages: [...t.messages, newMessage],
         };
@@ -863,10 +894,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
-  const updateTicketStatus = (ticketId: string, status: TicketStatus) => {
+  const updateTicketStatus = (ticketId: string, status: TicketStatus, assignedTo?: string) => {
     const now = new Date().toISOString();
     setTickets((prev) =>
-      prev.map((t) => (t.id === ticketId ? { ...t, status, updatedAt: now } : t))
+      prev.map((t) => {
+        if (t.id !== ticketId) return t;
+        const updates: Partial<SupportTicket> = { status, updatedAt: now };
+        if (assignedTo !== undefined) {
+          updates.assignedTo = assignedTo;
+          updates.assignedAt = now;
+        }
+        return { ...t, ...updates };
+      })
     );
   };
 
@@ -942,6 +981,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         loginSuperAdmin,
         registerUser,
         updateUserPassword,
+        setUserFirstAccess,
         updateUser,
         deleteUser,
         addUser,

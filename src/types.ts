@@ -103,6 +103,7 @@ export interface User {
   favorites: string[]; // IDs dos imóveis favoritos
   createdAt?: string;
   status?: 'active' | 'suspended';
+  firstAccess?: boolean; // Se true, o administrador deve alterar a senha no primeiro acesso sem perder poderes e limites
 }
 
 export interface FilterState {
@@ -123,8 +124,10 @@ export interface FilterState {
 
 // ==========================================
 // SISTEMA DE CHAMADOS & SUPORTE (TICKETS)
+// REMODELADO ESTRITAMENTE PARA 3 STATUS:
+// 1. Aberto | 2. Atribuído | 3. Resolvido
 // ==========================================
-export type TicketStatus = 'aberto' | 'em_analise' | 'respondido' | 'resolvido' | 'fechado';
+export type TicketStatus = 'aberto' | 'atribuido' | 'resolvido';
 export type TicketPriority = 'baixa' | 'media' | 'alta' | 'critica';
 export type TicketCategory =
   | 'cadastro_imovel'
@@ -138,7 +141,7 @@ export type TicketCategory =
 
 export interface TicketMessage {
   id: string;
-  senderRole: 'agency' | 'superadmin';
+  senderRole: 'agency' | 'superadmin' | 'client';
   senderName: string;
   senderEmail?: string;
   senderAgencyId?: string;
@@ -150,20 +153,23 @@ export interface TicketMessage {
 export interface SupportTicket {
   id: string; // Ex: "ticket-1001"
   ticketNumber: number; // Numeração sempre crescente: 1001, 1002, 1003...
-  agencyId: string; // ID da imobiliária (ex: "ag-extrema")
+  agencyId: string; // ID da imobiliária (ex: "ag-extrema") ou "portal_geral"
   agencyName: string; // Razão social
   agencyTradeName: string; // Nome fantasia
-  agencyCreci: string; // CRECI da imobiliária
+  agencyCreci?: string; // CRECI da imobiliária (quando aplicável)
+  requesterRole?: 'client' | 'agency_admin' | 'super_admin'; // Quem abriu o chamado
   requesterName: string; // Nome de quem abriu o chamado
   requesterEmail: string; // E-mail para fins de conversação
   requesterPhone?: string; // Telefone / WhatsApp
-  title: string; // Assunto / Falha relatada
+  title: string; // Assunto / Falha relatada (ex: "Redefinição de Senha")
   category: TicketCategory; // Categoria da falha
   siteSection?: string; // Recurso/Página afetada no portal
   priority: TicketPriority;
   description: string;
   images: string[]; // Imagens / prints anexados para visualização
-  status: TicketStatus;
+  status: TicketStatus; // 1. Aberto; 2. Atribuído; 3. Resolvido
+  assignedTo?: string; // Administrador do portal responsável
+  assignedAt?: string;
   messages: TicketMessage[];
   createdAt: string;
   updatedAt: string;

@@ -83,11 +83,10 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
       return b.ticketNumber - a.ticketNumber;
     });
 
-  // Calculate statistics
+  // Calculate statistics strictly for the 3 statuses
   const totalTickets = tickets.length;
   const openTickets = tickets.filter((t) => t.status === 'aberto').length;
-  const inAnalysisTickets = tickets.filter((t) => t.status === 'em_analise').length;
-  const repliedTickets = tickets.filter((t) => t.status === 'respondido').length;
+  const assignedTickets = tickets.filter((t) => t.status === 'atribuido').length;
   const resolvedTickets = tickets.filter((t) => t.status === 'resolvido').length;
 
   // Handle Admin Reply
@@ -110,11 +109,12 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
     if (updated) setActiveTicket(updated);
   };
 
-  const handleStatusChange = (ticketId: string, status: TicketStatus) => {
-    updateTicketStatus(ticketId, status);
+  const handleStatusChange = (ticketId: string, status: TicketStatus, assignedTo?: string) => {
+    const adminAssignee = assignedTo || (status === 'atribuido' ? (currentUser?.name || 'Administrador Master') : undefined);
+    updateTicketStatus(ticketId, status, adminAssignee);
     triggerToast(`Status do chamado #${ticketId} atualizado para "${STATUS_LABELS[status].label}".`);
     if (activeTicket && activeTicket.id === ticketId) {
-      setActiveTicket((prev) => (prev ? { ...prev, status } : null));
+      setActiveTicket((prev) => (prev ? { ...prev, status, assignedTo: adminAssignee || prev.assignedTo } : null));
     }
   };
 
@@ -166,10 +166,10 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
         </div>
       </div>
 
-      {/* Summary KPI Badges */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      {/* Summary KPI Badges remodelados para 3 status */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-stone-500 block">Total Geral</span>
+          <span className="text-[11px] font-semibold text-stone-500 block">Total de Chamados</span>
           <div className="text-2xl font-bold text-stone-900 mt-1 flex items-center gap-2">
             <LifeBuoy className="w-5 h-5 text-emerald-600" />
             <span>{totalTickets}</span>
@@ -178,39 +178,30 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
         </div>
 
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-amber-800 block">Abertos (Novos)</span>
+          <span className="text-[11px] font-semibold text-amber-800 block">1. Aberto</span>
           <div className="text-2xl font-bold text-amber-900 mt-1 flex items-center gap-2">
             <Clock className="w-5 h-5 text-amber-600" />
             <span>{openTickets}</span>
           </div>
-          <span className="text-[10px] text-amber-700">Aguardando resposta</span>
+          <span className="text-[10px] text-amber-700">Aguardando atendimento</span>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-blue-800 block">Em Análise Técnica</span>
+          <span className="text-[11px] font-semibold text-blue-800 block">2. Atribuído</span>
           <div className="text-2xl font-bold text-blue-900 mt-1 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-blue-600" />
-            <span>{inAnalysisTickets}</span>
+            <span>{assignedTickets}</span>
           </div>
-          <span className="text-[10px] text-blue-700">Em investigação</span>
+          <span className="text-[10px] text-blue-700">Com administrador responsável</span>
         </div>
 
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-emerald-800 block">Respondidos</span>
+          <span className="text-[11px] font-semibold text-emerald-800 block">3. Resolvido</span>
           <div className="text-2xl font-bold text-emerald-900 mt-1 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-emerald-600" />
-            <span>{repliedTickets}</span>
-          </div>
-          <span className="text-[10px] text-emerald-700">Aguardando imobiliária</span>
-        </div>
-
-        <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-semibold text-stone-500 block">Resolvidos</span>
-          <div className="text-2xl font-bold text-stone-800 mt-1 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             <span>{resolvedTickets}</span>
           </div>
-          <span className="text-[10px] text-stone-400">Falhas concluídas</span>
+          <span className="text-[10px] text-emerald-700">Falhas concluídas</span>
         </div>
       </div>
 
@@ -235,7 +226,8 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
             onChange={(e) => setSelectedAgencyId(e.target.value)}
             className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white font-semibold cursor-pointer"
           >
-            <option value="all">🏢 Todas as Imobiliárias</option>
+            <option value="all">🏢 Todas as Imobiliárias & Clientes</option>
+            <option value="portal_geral">👤 Clientes Finais (Portal Geral)</option>
             {agencies.map((ag) => (
               <option key={ag.id} value={ag.id}>
                 [ID: {ag.id}] {ag.tradeName || ag.name}
@@ -249,14 +241,12 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer font-medium"
           >
-            <option value="all">Todos os Status</option>
-            <option value="aberto">Aberto</option>
-            <option value="em_analise">Em Análise</option>
-            <option value="respondido">Respondido</option>
-            <option value="resolvido">Resolvido</option>
-            <option value="fechado">Fechado</option>
+            <option value="all">Todos os Status (3 fases)</option>
+            <option value="aberto">1. Aberto</option>
+            <option value="atribuido">2. Atribuído</option>
+            <option value="resolvido">3. Resolvido</option>
           </select>
         </div>
 
@@ -383,17 +373,22 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
 
                       {/* Status */}
                       <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
-                        <select
-                          value={ticket.status}
-                          onChange={(e) => handleStatusChange(ticket.id, e.target.value as TicketStatus)}
-                          className={`text-xs font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${statusCfg.badgeClass}`}
-                        >
-                          <option value="aberto">Aberto</option>
-                          <option value="em_analise">Em Análise</option>
-                          <option value="respondido">Respondido</option>
-                          <option value="resolvido">Resolvido</option>
-                          <option value="fechado">Fechado</option>
-                        </select>
+                        <div className="space-y-1">
+                          <select
+                            value={ticket.status}
+                            onChange={(e) => handleStatusChange(ticket.id, e.target.value as TicketStatus)}
+                            className={`text-xs font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${statusCfg.badgeClass}`}
+                          >
+                            <option value="aberto">1. Aberto</option>
+                            <option value="atribuido">2. Atribuído</option>
+                            <option value="resolvido">3. Resolvido</option>
+                          </select>
+                          {ticket.assignedTo && (
+                            <div className="text-[10px] text-blue-700 font-semibold truncate max-w-[140px]">
+                              Resp: {ticket.assignedTo}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -439,14 +434,26 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
                   <h3 className="font-bold text-base text-white">{activeTicket.title}</h3>
                   <div className="flex items-center gap-2 text-[11px] text-stone-400 mt-0.5 flex-wrap">
                     <span>
-                      Imobiliária: <strong className="text-amber-400">{activeTicket.agencyTradeName}</strong>
+                      Origem: <strong className="text-amber-400">{activeTicket.agencyTradeName}</strong>
                     </span>
                     <span>•</span>
                     <span className="font-mono bg-stone-800 px-1 rounded text-stone-300">
                       ID: {activeTicket.agencyId}
                     </span>
-                    <span>•</span>
-                    <span>CRECI {activeTicket.agencyCreci}</span>
+                    {activeTicket.agencyCreci && (
+                      <>
+                        <span>•</span>
+                        <span>CRECI {activeTicket.agencyCreci}</span>
+                      </>
+                    )}
+                    {activeTicket.assignedTo && (
+                      <>
+                        <span>•</span>
+                        <span className="text-blue-300 font-semibold bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800">
+                          Atribuído a: {activeTicket.assignedTo}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -459,11 +466,9 @@ export const SuperAdminTicketsTab: React.FC<SuperAdminTicketsTabProps> = ({ agen
                     STATUS_LABELS[activeTicket.status].badgeClass
                   }`}
                 >
-                  <option value="aberto">Aberto</option>
-                  <option value="em_analise">Em Análise</option>
-                  <option value="respondido">Respondido</option>
-                  <option value="resolvido">Resolvido</option>
-                  <option value="fechado">Fechado</option>
+                  <option value="aberto">1. Aberto</option>
+                  <option value="atribuido">2. Atribuído</option>
+                  <option value="resolvido">3. Resolvido</option>
                 </select>
 
                 <button
