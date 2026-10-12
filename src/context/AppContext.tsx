@@ -105,27 +105,270 @@ const STORAGE_KEYS = {
   LAST_ACTIVITY: 'imobirede_last_activity_v4',
 };
 
+// Helper function to scan all candidate keys and localStorage for all agencies
+const loadAllAgenciesFromStorage = (): Agency[] => {
+  const agencyMap = new Map<string, Agency>();
+
+  // 1. Seed with initial project demonstration agencies
+  INITIAL_AGENCIES.forEach((ia) => {
+    agencyMap.set(ia.id, { ...ia });
+  });
+
+  const sanitizeAgency = (item: any): Agency | null => {
+    if (!item || typeof item !== 'object') return null;
+    const name = String(item.name || item.tradeName || '').trim();
+    if (!name) return null;
+    const id = item.id ? String(item.id).trim() : `ag-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const tradeName = String(item.tradeName || name).trim();
+    const creci = String(item.creci || '00000-J').trim();
+    const existing = agencyMap.get(id);
+
+    return {
+      id,
+      name,
+      tradeName,
+      creci,
+      logoUrl: item.logoUrl || existing?.logoUrl || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=200&q=80',
+      phone: item.phone || existing?.phone || '(11) 3300-0000',
+      whatsapp: item.whatsapp || existing?.whatsapp || '5511999998888',
+      email: item.email || existing?.email || 'contato@imobiliaria.com.br',
+      adminEmail: item.adminEmail || existing?.adminEmail || item.email || 'admin@imobiliaria.com.br',
+      address: item.address || existing?.address || 'Endereço Comercial Central',
+      city: item.city || existing?.city || 'São Paulo',
+      state: item.state || existing?.state || 'SP',
+      description: item.description || existing?.description || 'Imobiliária credenciada na rede integrada de imóveis.',
+      plano: item.plano || existing?.plano || 'PROFISSIONAL',
+      status_assinatura: item.status_assinatura || existing?.status_assinatura || 'ACTIVE',
+      subscriptionStartDate: item.subscriptionStartDate || existing?.subscriptionStartDate || '2026-01-10',
+      subscriptionRenewalDate: item.subscriptionRenewalDate || existing?.subscriptionRenewalDate || '2026-12-31',
+    };
+  };
+
+  const ingest = (items: any) => {
+    if (!items) return;
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const sanitized = sanitizeAgency(item);
+        if (sanitized) agencyMap.set(sanitized.id, sanitized);
+      });
+    } else if (typeof items === 'object') {
+      const sanitized = sanitizeAgency(items);
+      if (sanitized) agencyMap.set(sanitized.id, sanitized);
+    }
+  };
+
+  const candidateKeys = [
+    STORAGE_KEYS.AGENCIES,
+    'imobirede_agencies_v5',
+    'imobirede_agencies_v4',
+    'imobirede_agencies_v3',
+    'imobirede_agencies_v2',
+    'imobirede_agencies_v1',
+    'imobirede_agencies',
+    'agencies',
+    'imobirede_registered_agencies',
+    'registered_agencies',
+    'imobiliarias',
+  ];
+
+  candidateKeys.forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) ingest(JSON.parse(raw));
+    } catch {}
+  });
+
+  // Comprehensive scan of ALL localStorage keys for any agencies registered outside the default key
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !candidateKeys.includes(key)) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw && (raw.startsWith('[') || raw.startsWith('{'))) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.name && (parsed[0]?.creci || parsed[0]?.tradeName)) {
+              ingest(parsed);
+            } else if (parsed && typeof parsed === 'object' && parsed.name && (parsed.creci || parsed.tradeName)) {
+              ingest([parsed]);
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+
+  const result = Array.from(agencyMap.values());
+  try {
+    localStorage.setItem(STORAGE_KEYS.AGENCIES, JSON.stringify(result));
+  } catch {}
+  return result;
+};
+
+// Helper function to scan all candidate keys and localStorage for properties
+const loadAllPropertiesFromStorage = (agenciesList: Agency[]): Property[] => {
+  const propMap = new Map<string, Property>();
+
+  INITIAL_PROPERTIES.forEach((ip) => {
+    propMap.set(ip.id, {
+      ...ip,
+      minhaCasaMinhaVida: typeof ip.minhaCasaMinhaVida === 'boolean' ? ip.minhaCasaMinhaVida : false,
+      fgts: typeof ip.fgts === 'boolean' ? ip.fgts : true,
+      analiseCreditoGratuita: typeof ip.analiseCreditoGratuita === 'boolean' ? ip.analiseCreditoGratuita : true,
+    });
+  });
+
+  const sanitizeProp = (item: any): Property | null => {
+    if (!item || typeof item !== 'object' || !item.title) return null;
+    const id = item.id ? String(item.id) : `prop-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const agencyId = item.agencyId || agenciesList[0]?.id || 'ag-vertice';
+
+    return {
+      ...item,
+      id,
+      agencyId,
+      title: String(item.title).trim(),
+      code: item.code || `IMO-${Math.floor(100 + Math.random() * 900)}`,
+      type: item.type || 'apartamento',
+      purpose: item.purpose || 'locacao',
+      location: item.location || {
+        city: 'São Paulo',
+        state: 'SP',
+        neighborhood: 'Centro',
+        address: 'Rua Comercial Principal',
+      },
+      images: Array.isArray(item.images) && item.images.length > 0
+        ? item.images
+        : ['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80'],
+      minhaCasaMinhaVida: typeof item.minhaCasaMinhaVida === 'boolean' ? item.minhaCasaMinhaVida : false,
+      fgts: typeof item.fgts === 'boolean' ? item.fgts : true,
+      analiseCreditoGratuita: typeof item.analiseCreditoGratuita === 'boolean' ? item.analiseCreditoGratuita : true,
+    };
+  };
+
+  const ingest = (items: any) => {
+    if (!items) return;
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const sanitized = sanitizeProp(item);
+        if (sanitized) propMap.set(sanitized.id, sanitized);
+      });
+    } else if (typeof items === 'object') {
+      const sanitized = sanitizeProp(items);
+      if (sanitized) propMap.set(sanitized.id, sanitized);
+    }
+  };
+
+  const candidateKeys = [
+    STORAGE_KEYS.PROPERTIES,
+    'imobirede_properties_v5',
+    'imobirede_properties_v4',
+    'imobirede_properties_v3',
+    'imobirede_properties_v2',
+    'imobirede_properties_v1',
+    'imobirede_properties',
+    'properties',
+  ];
+
+  candidateKeys.forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) ingest(JSON.parse(raw));
+    } catch {}
+  });
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !candidateKeys.includes(key)) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw && raw.startsWith('[')) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.title && parsed[0]?.agencyId) {
+              ingest(parsed);
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+
+  const result = Array.from(propMap.values());
+  try {
+    localStorage.setItem(STORAGE_KEYS.PROPERTIES, JSON.stringify(result));
+  } catch {}
+  return result;
+};
+
+// Helper function to scan all candidate keys and localStorage for users
+const loadAllUsersFromStorage = (): User[] => {
+  const userMap = new Map<string, User>();
+
+  INITIAL_USERS.forEach((iu) => {
+    userMap.set(iu.id, { ...iu });
+  });
+
+  const sanitizeUser = (u: any): User | null => {
+    if (!u || typeof u !== 'object' || !u.email) return null;
+    const email = String(u.email).toLowerCase().trim();
+    const id = u.id ? String(u.id) : `user-${Date.now()}`;
+    const isSuper = id === 'user-superadmin' || email === 'superadmin@imobirede.com.br' || u.role === 'super_admin' || u.role === 'site_creator';
+
+    return {
+      ...u,
+      id: isSuper ? 'user-superadmin' : id,
+      name: isSuper ? 'Super Administrador (Master)' : u.name || email.split('@')[0],
+      email: isSuper ? 'superadmin@imobirede.com.br' : email,
+      role: isSuper ? ('super_admin' as const) : u.role || 'client',
+      agencyId: u.agencyId,
+      password: u.password || (isSuper ? 'superadmin123' : u.role === 'agency_admin' ? 'imobiliaria123' : 'cliente123'),
+      favorites: Array.isArray(u.favorites) ? u.favorites : [],
+      createdAt: u.createdAt || '2026-01-15',
+      status: u.status || 'active',
+      firstAccess: typeof u.firstAccess === 'boolean' ? u.firstAccess : false,
+    };
+  };
+
+  const ingest = (items: any) => {
+    if (!items) return;
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const sanitized = sanitizeUser(item);
+        if (sanitized) userMap.set(sanitized.id, sanitized);
+      });
+    }
+  };
+
+  const candidateKeys = [
+    STORAGE_KEYS.USERS,
+    'imobirede_users_v5',
+    'imobirede_users_v4',
+    'imobirede_users_v3',
+    'imobirede_users_v2',
+    'imobirede_users_v1',
+    'imobirede_users',
+    'users',
+  ];
+
+  candidateKeys.forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) ingest(JSON.parse(raw));
+    } catch {}
+  });
+
+  const result = Array.from(userMap.values());
+  try {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(result));
+  } catch {}
+  return result;
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [agencies, setAgencies] = useState<Agency[]>(() => {
     try {
-      // Check v5 first, then fallback to v4 with migration
-      const saved = localStorage.getItem(STORAGE_KEYS.AGENCIES) || localStorage.getItem('imobirede_agencies_v4');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.some((a) => a.id === 'ag-extrema')) {
-          return parsed.map((ag) => {
-            const initialMatch = INITIAL_AGENCIES.find((ia) => ia.id === ag.id);
-            return {
-              ...ag,
-              plano: ag.plano || initialMatch?.plano || 'PROFISSIONAL',
-              status_assinatura: ag.status_assinatura || initialMatch?.status_assinatura || 'ACTIVE',
-              subscriptionStartDate: ag.subscriptionStartDate || initialMatch?.subscriptionStartDate || '2026-01-10',
-              subscriptionRenewalDate: ag.subscriptionRenewalDate || initialMatch?.subscriptionRenewalDate || '2026-10-10',
-            };
-          });
-        }
-      }
-      return INITIAL_AGENCIES;
+      return loadAllAgenciesFromStorage();
     } catch {
       return INITIAL_AGENCIES;
     }
@@ -133,19 +376,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [properties, setProperties] = useState<Property[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.PROPERTIES);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.some((p) => p.agencyId === 'ag-extrema')) {
-          return parsed.map((p) => ({
-            ...p,
-            minhaCasaMinhaVida: typeof p.minhaCasaMinhaVida === 'boolean' ? p.minhaCasaMinhaVida : false,
-            fgts: typeof p.fgts === 'boolean' ? p.fgts : true,
-            analiseCreditoGratuita: typeof p.analiseCreditoGratuita === 'boolean' ? p.analiseCreditoGratuita : true,
-          }));
-        }
-      }
-      return INITIAL_PROPERTIES;
+      return loadAllPropertiesFromStorage(agencies);
     } catch {
       return INITIAL_PROPERTIES;
     }
@@ -153,11 +384,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [visits, setVisits] = useState<VisitAppointment[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.VISITS);
+      const saved = localStorage.getItem(STORAGE_KEYS.VISITS) || localStorage.getItem('imobirede_visits_v4');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= INITIAL_VISITS.length) {
-          return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const loadedVisits = [...parsed];
+          INITIAL_VISITS.forEach((iv) => {
+            if (!loadedVisits.some((v) => v.id === iv.id)) {
+              loadedVisits.push(iv);
+            }
+          });
+          return loadedVisits;
         }
       }
       return INITIAL_VISITS;
@@ -168,44 +405,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [users, setUsers] = useState<User[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          let merged: User[] = parsed
-            .filter((u: User) => u.id !== 'user-site-creator' && u.email?.toLowerCase() !== 'criador@imobirede.com.br')
-            .map((u: User) => {
-              const initialMatch = INITIAL_USERS.find(
-                (iu) => iu.id === u.id || iu.email.toLowerCase() === u.email.toLowerCase()
-              );
-              const isSuper = u.id === 'user-superadmin' || u.role === 'super_admin' || u.role === 'site_creator';
-              return {
-                ...u,
-                name: isSuper ? 'Super Administrador (Master)' : u.name,
-                email: isSuper ? 'superadmin@imobirede.com.br' : u.email,
-                role: isSuper ? ('super_admin' as const) : u.role,
-                password:
-                  u.password ||
-                  initialMatch?.password ||
-                  (isSuper
-                    ? 'superadmin123'
-                    : u.role === 'agency_admin'
-                    ? 'imobiliaria123'
-                    : 'cliente123'),
-                createdAt: u.createdAt || initialMatch?.createdAt || '2026-01-15',
-                status: u.status || 'active',
-              };
-            });
-
-          // Ensure superadmin is present
-          if (!merged.some((u) => u.id === 'user-superadmin' || u.email.toLowerCase() === 'superadmin@imobirede.com.br')) {
-            const sa = INITIAL_USERS.find((iu) => iu.id === 'user-superadmin') || INITIAL_USERS[0];
-            merged = [sa, ...merged];
-          }
-          return merged;
-        }
-      }
-      return INITIAL_USERS;
+      return loadAllUsersFromStorage();
     } catch {
       return INITIAL_USERS;
     }
@@ -349,16 +549,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem(STORAGE_KEYS.SITE_CREATOR_MODE, String(isSiteCreatorMode));
   }, [isSiteCreatorMode]);
 
-  // Sync selectedAgencyId with currentUser.agencyId for agency_admin
+  // Sync selectedAgencyId with currentUser.agencyId for agency_admin (unless user is Super Admin)
   useEffect(() => {
-    if (currentUser?.role === 'agency_admin' && currentUser.agencyId) {
+    if (!isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId) {
       setSelectedAgencyId(currentUser.agencyId);
     }
-  }, [currentUser]);
+  }, [currentUser, isSuperAdmin]);
 
   const setSelectedAgencyIdSafe = (agencyId: string | null) => {
-    // Security: Agency admin cannot change selected agency to other companies
-    if (currentUser?.role === 'agency_admin' && currentUser.agencyId) {
+    // Security: Agency admin cannot change selected agency to other companies (Super Admin can change freely)
+    if (!isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId) {
       setSelectedAgencyId(currentUser.agencyId);
       return;
     }
@@ -366,7 +566,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const currentAgency =
-    currentUser?.role === 'agency_admin' && currentUser?.agencyId
+    !isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser?.agencyId
       ? agencies.find((a) => a.id === currentUser.agencyId) || null
       : agencies.find((a) => a.id === selectedAgencyId) || agencies[0] || null;
 
@@ -375,24 +575,67 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addAgency = (agencyData: Omit<Agency, 'id'>): Agency => {
-    if (!isSuperAdmin) {
-      throw new Error('Apenas o Super Administrador pode cadastrar novas imobiliárias na rede.');
-    }
     const id = `ag-${Date.now()}`;
-    const newAgency: Agency = { ...agencyData, id };
-    setAgencies((prev) => [newAgency, ...prev]);
+    const newAgency: Agency = {
+      ...agencyData,
+      id,
+      tradeName: agencyData.tradeName || agencyData.name,
+      plano: agencyData.plano || 'PROFISSIONAL',
+      status_assinatura: agencyData.status_assinatura || 'ACTIVE',
+      subscriptionStartDate: agencyData.subscriptionStartDate || new Date().toISOString().split('T')[0],
+      subscriptionRenewalDate:
+        agencyData.subscriptionRenewalDate ||
+        new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    };
+
+    setAgencies((prev) => {
+      const updated = [newAgency, ...prev.filter((a) => a.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.AGENCIES, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // Automatically provision an agency administrator user if not existing
+    const adminEmail = (newAgency.adminEmail || newAgency.email || `admin@${newAgency.name.toLowerCase().replace(/\s+/g, '')}.com.br`).toLowerCase().trim();
+    setUsers((prevUsers) => {
+      const existingUserIndex = prevUsers.findIndex((u) => u.email.toLowerCase() === adminEmail);
+      let updatedUsers: User[];
+      if (existingUserIndex >= 0) {
+        updatedUsers = prevUsers.map((u, i) => (i === existingUserIndex ? { ...u, agencyId: id, role: 'agency_admin' as const } : u));
+      } else {
+        const newAdminUser: User = {
+          id: `user-${Date.now()}`,
+          name: `Admin - ${newAgency.tradeName || newAgency.name}`,
+          email: adminEmail,
+          password: 'imobiliaria123',
+          role: 'agency_admin',
+          agencyId: id,
+          favorites: [],
+          createdAt: new Date().toISOString().split('T')[0],
+          status: 'active',
+          firstAccess: false,
+        };
+        updatedUsers = [...prevUsers, newAdminUser];
+      }
+      try {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updatedUsers));
+      } catch {}
+      return updatedUsers;
+    });
+
     return newAgency;
   };
 
   const updateAgency = (id: string, updates: Partial<Agency>) => {
-    // Security: Agency admin can only update their own agency profile
-    if (currentUser?.role === 'agency_admin' && currentUser.agencyId && id !== currentUser.agencyId) {
+    // Security: Agency admin can only update their own agency profile (Super Admin has unrestricted full access)
+    if (!isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId && id !== currentUser.agencyId) {
       console.warn('Acesso negado: Administrador de imobiliária só pode alterar dados da sua própria empresa.');
       return;
     }
 
-    // Security: Agency admin cannot modify subscription plan or billing status
-    const safeUpdates = currentUser?.role === 'agency_admin'
+    // Security: Agency admin cannot modify subscription plan or billing status (Super Admin can modify anything)
+    const safeUpdates = !isSuperAdmin && currentUser?.role === 'agency_admin'
       ? { ...updates, plano: undefined, status_assinatura: undefined, subscriptionRenewalDate: undefined }
       : updates;
 
@@ -447,16 +690,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addProperty = (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'searchCount'>): Property => {
-    // Security: Agency admin must strictly create properties for their own agency
+    // Security: Agency admin must strictly create properties for their own agency; Super Admin can create for ANY agency
     const targetAgencyId =
-      currentUser?.role === 'agency_admin' && currentUser.agencyId
+      !isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId
         ? currentUser.agencyId
         : propertyData.agencyId;
 
     const agency = getAgencyById(targetAgencyId);
     
-    // Regra central de controle de limite de imóveis por plano (backend/regras de segurança)
-    if (agency && !isSiteCreatorMode) {
+    // Regra central de controle de limite de imóveis por plano (Super Admin possui poderes totais e irrestritos)
+    if (agency && !isSiteCreatorMode && !isSuperAdmin) {
       const currentCount = properties.filter((p) => p.agencyId === targetAgencyId).length;
       const check = canCreateProperty(agency, currentCount);
       if (!check.allowed) {
@@ -485,14 +728,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProperties((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
-        // Security check: Agency admin can ONLY update properties of their own agency!
-        if (currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
+        // Security check: Agency admin can ONLY update properties of their own agency! Super Admin can update ANY property
+        if (!isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
           console.warn('Acesso negado: Administrador de imobiliária não pode alterar imóvel de outra empresa.');
           return p;
         }
-        // Security check: Agency admin cannot transfer property to another agency
         const safeUpdates =
-          currentUser?.role === 'agency_admin' && currentUser.agencyId
+          !isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId
             ? { ...updates, agencyId: currentUser.agencyId }
             : updates;
         return { ...p, ...safeUpdates };
@@ -504,8 +746,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProperties((prev) =>
       prev.filter((p) => {
         if (p.id !== id) return true;
-        // Security check: Agency admin can ONLY delete properties of their own agency!
-        if (currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
+        // Security check: Agency admin can ONLY delete properties of their own agency! Super Admin can delete ANY property
+        if (!isSuperAdmin && currentUser?.role === 'agency_admin' && currentUser.agencyId && p.agencyId !== currentUser.agencyId) {
           console.warn('Acesso negado: Administrador de imobiliária não pode excluir imóvel de outra empresa.');
           return true;
         }
@@ -1035,6 +1277,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (e.key === STORAGE_KEYS.CURRENT_USER && !e.newValue) {
         setCurrentUser(null);
         setIsSiteCreatorMode(false);
+      }
+      if (e.key === STORAGE_KEYS.AGENCIES && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAgencies(parsed);
+          }
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.PROPERTIES && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setProperties(parsed);
+          }
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.USERS && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setUsers(parsed);
+          }
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.VISITS && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setVisits(parsed);
+          }
+        } catch {}
       }
     };
     window.addEventListener('storage', handleStorageChange);

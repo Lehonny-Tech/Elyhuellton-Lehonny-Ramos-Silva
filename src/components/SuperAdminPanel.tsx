@@ -61,6 +61,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     tickets,
     updateProperty,
     deleteProperty,
+    addProperty,
     togglePropertyFeature,
     approvePropertyFeature,
     rejectPropertyFeature,
@@ -124,15 +125,51 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     setTimeout(() => setToastMessage(''), 4000);
   };
 
-  // Property edit modal
+  // Agency Search Filter
+  const [agencySearch, setAgencySearch] = useState('');
+
+  // Property create modal (Super Admin Master)
+  const [isCreatePropertyOpen, setIsCreatePropertyOpen] = useState(false);
+  const [newPropTitle, setNewPropTitle] = useState('');
+  const [newPropAgencyId, setNewPropAgencyId] = useState('');
+  const [newPropType, setNewPropType] = useState<Property['type']>('apartamento');
+  const [newPropPurpose, setNewPropPurpose] = useState<Property['purpose']>('venda');
+  const [newPropRent, setNewPropRent] = useState<number | ''>('');
+  const [newPropSale, setNewPropSale] = useState<number | ''>('');
+  const [newPropBedrooms, setNewPropBedrooms] = useState(2);
+  const [newPropBathrooms, setNewPropBathrooms] = useState(1);
+  const [newPropSuites, setNewPropSuites] = useState(0);
+  const [newPropGarage, setNewPropGarage] = useState(1);
+  const [newPropArea, setNewPropArea] = useState<number | ''>(75);
+  const [newPropCity, setNewPropCity] = useState('');
+  const [newPropState, setNewPropState] = useState('SP');
+  const [newPropNeighborhood, setNewPropNeighborhood] = useState('');
+  const [newPropAddress, setNewPropAddress] = useState('');
+  const [newPropDescription, setNewPropDescription] = useState('');
+  const [newPropImageUrl, setNewPropImageUrl] = useState('');
+  const [newPropMcmv, setNewPropMcmv] = useState(false);
+  const [newPropFgts, setNewPropFgts] = useState(true);
+  const [newPropAnalise, setNewPropAnalise] = useState(true);
+
+  // Property edit modal (Full Master Control)
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [editPropTitle, setEditPropTitle] = useState('');
+  const [editPropAgencyId, setEditPropAgencyId] = useState('');
+  const [editPropType, setEditPropType] = useState<Property['type']>('apartamento');
+  const [editPropPurpose, setEditPropPurpose] = useState<Property['purpose']>('venda');
   const [editPropRent, setEditPropRent] = useState<number | ''>('');
   const [editPropSale, setEditPropSale] = useState<number | ''>('');
   const [editPropBedrooms, setEditPropBedrooms] = useState(2);
+  const [editPropBathrooms, setEditPropBathrooms] = useState(1);
+  const [editPropSuites, setEditPropSuites] = useState(0);
   const [editPropGarage, setEditPropGarage] = useState(1);
   const [editPropArea, setEditPropArea] = useState<number | ''>(80);
-  const [editPropAgencyId, setEditPropAgencyId] = useState('');
+  const [editPropCity, setEditPropCity] = useState('');
+  const [editPropState, setEditPropState] = useState('SP');
+  const [editPropNeighborhood, setEditPropNeighborhood] = useState('');
+  const [editPropAddress, setEditPropAddress] = useState('');
+  const [editPropDescription, setEditPropDescription] = useState('');
+  const [editPropImageUrl, setNewEditPropImageUrl] = useState('');
   const [editPropMcmv, setEditPropMcmv] = useState(false);
   const [editPropFgts, setEditPropFgts] = useState(true);
   const [editPropAnalise, setEditPropAnalise] = useState(true);
@@ -246,15 +283,95 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     setNewAgencyCity('');
   };
 
+  const handleOpenCreateProperty = (preselectedAgencyId?: string) => {
+    const targetAgId = preselectedAgencyId || agencies[0]?.id || '';
+    const chosenAgency = agencies.find((a) => a.id === targetAgId);
+    setNewPropAgencyId(targetAgId);
+    setNewPropTitle('');
+    setNewPropType('apartamento');
+    setNewPropPurpose('venda');
+    setNewPropRent('');
+    setNewPropSale('');
+    setNewPropBedrooms(2);
+    setNewPropBathrooms(1);
+    setNewPropSuites(0);
+    setNewPropGarage(1);
+    setNewPropArea(75);
+    setNewPropCity(chosenAgency?.city || 'São Paulo');
+    setNewPropState(chosenAgency?.state || 'SP');
+    setNewPropNeighborhood('');
+    setNewPropAddress('');
+    setNewPropDescription('');
+    setNewPropImageUrl('');
+    setNewPropMcmv(false);
+    setNewPropFgts(true);
+    setNewPropAnalise(true);
+    setIsCreatePropertyOpen(true);
+  };
+
+  const handleCreatePropertySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPropTitle.trim() || !newPropAgencyId) {
+      triggerToast('Título do imóvel e Imobiliária são obrigatórios!');
+      return;
+    }
+    const chosenAgency = getAgencyById(newPropAgencyId);
+    const newProp = addProperty({
+      title: newPropTitle.trim(),
+      agencyId: newPropAgencyId,
+      type: newPropType,
+      purpose: newPropPurpose,
+      rentPrice: newPropRent !== '' ? Number(newPropRent) : undefined,
+      salePrice: newPropSale !== '' ? Number(newPropSale) : undefined,
+      bedrooms: Number(newPropBedrooms) || 1,
+      bathrooms: Number(newPropBathrooms) || 1,
+      suites: Number(newPropSuites) || 0,
+      garageSpots: Number(newPropGarage) || 0,
+      usableArea: Number(newPropArea) || 60,
+      totalArea: (Number(newPropArea) || 60) + 15,
+      description:
+        newPropDescription.trim() ||
+        `Excelente imóvel cadastrado pelo Super Administrador Master para a imobiliária ${chosenAgency?.tradeName || chosenAgency?.name}.`,
+      location: {
+        city: newPropCity.trim() || chosenAgency?.city || 'São Paulo',
+        state: newPropState.trim() || chosenAgency?.state || 'SP',
+        neighborhood: newPropNeighborhood.trim() || 'Centro',
+        address: newPropAddress.trim() || 'Rua Comercial Principal',
+        zipCode: '01000-000',
+        lat: -23.5505,
+        lng: -46.6333,
+      },
+      images: newPropImageUrl.trim()
+        ? [newPropImageUrl.trim()]
+        : ['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80'],
+      status: 'disponivel',
+      minhaCasaMinhaVida: newPropMcmv,
+      fgts: newPropFgts,
+      analiseCreditoGratuita: newPropAnalise,
+    });
+    triggerToast(`Imóvel "${newProp.title}" (Cód: ${newProp.code}) cadastrado com sucesso!`);
+    setIsCreatePropertyOpen(false);
+  };
+
   const handleOpenEditProperty = (prop: Property) => {
     setEditingProperty(prop);
     setEditPropTitle(prop.title);
+    setEditPropAgencyId(prop.agencyId);
+    setEditPropType(prop.type || 'apartamento');
+    setEditPropPurpose(prop.purpose || 'venda');
     setEditPropRent(prop.rentPrice || '');
     setEditPropSale(prop.salePrice || '');
     setEditPropBedrooms(prop.bedrooms);
+    setEditPropBathrooms(prop.bathrooms || 1);
+    setEditPropSuites(prop.suites || 0);
     setEditPropGarage(prop.garageSpots);
     setEditPropArea(prop.usableArea);
-    setEditPropAgencyId(prop.agencyId);
+    setEditPropCity(prop.location.city || '');
+    setEditPropState(prop.location.state || 'SP');
+    setEditPropNeighborhood(prop.location.neighborhood || '');
+    setEditPropAddress(prop.location.address || '');
+    setEditPropDescription(prop.description || '');
+    setNewEditPropImageUrl(prop.images?.[0] || '');
     setEditPropMcmv(prop.minhaCasaMinhaVida ?? false);
     setEditPropFgts(prop.fgts ?? true);
     setEditPropAnalise(prop.analiseCreditoGratuita ?? true);
@@ -266,12 +383,27 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
 
     updateProperty(editingProperty.id, {
       title: editPropTitle.trim(),
-      rentPrice: editPropRent ? Number(editPropRent) : undefined,
-      salePrice: editPropSale ? Number(editPropSale) : undefined,
-      bedrooms: editPropBedrooms,
-      garageSpots: editPropGarage,
-      usableArea: editPropArea ? Number(editPropArea) : 80,
       agencyId: editPropAgencyId,
+      type: editPropType,
+      purpose: editPropPurpose,
+      rentPrice: editPropRent !== '' ? Number(editPropRent) : undefined,
+      salePrice: editPropSale !== '' ? Number(editPropSale) : undefined,
+      bedrooms: Number(editPropBedrooms) || 1,
+      bathrooms: Number(editPropBathrooms) || 1,
+      suites: Number(editPropSuites) || 0,
+      garageSpots: Number(editPropGarage) || 0,
+      usableArea: Number(editPropArea) || 80,
+      description: editPropDescription.trim(),
+      location: {
+        ...editingProperty.location,
+        city: editPropCity.trim() || editingProperty.location.city,
+        state: editPropState.trim() || editingProperty.location.state,
+        neighborhood: editPropNeighborhood.trim() || editingProperty.location.neighborhood,
+        address: editPropAddress.trim() || editingProperty.location.address,
+      },
+      images: editPropImageUrl.trim()
+        ? [editPropImageUrl.trim(), ...(editingProperty.images?.slice(1) || [])]
+        : editingProperty.images,
       minhaCasaMinhaVida: editPropMcmv,
       fgts: editPropFgts,
       analiseCreditoGratuita: editPropAnalise,
@@ -786,109 +918,189 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-emerald-600" />
-                <span>Gestão Completa de Imobiliárias Parceiras</span>
-              </h2>
-              <p className="text-xs text-stone-500 mt-0.5">
-                Controle cadastros, planos, logos, cidades e permissões de cada imobiliária no portal.
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-emerald-600" />
+                  <span>Gestão Completa de Imobiliárias Parceiras</span>
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                  {agencies.length} cadastradas
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 mt-1">
+                Acesso total de Super Administrador: controle irrestrito de cadastros, planos, limites de imóveis e dados de todas as imobiliárias cadastradas no portal.
               </p>
             </div>
 
-            <button
-              onClick={() => setIsCreateAgencyOpen(true)}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Nova Imobiliária</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsCreateAgencyOpen(true)}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Nova Imobiliária</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Agency Search Filter Bar */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-3 shadow-xs flex items-center gap-3">
+            <Search className="w-4 h-4 text-stone-400 shrink-0 ml-2" />
+            <input
+              type="text"
+              placeholder="Buscar imobiliária por Razão Social, Nome Fantasia, CRECI, Cidade, Estado ou E-mail..."
+              value={agencySearch}
+              onChange={(e) => setAgencySearch(e.target.value)}
+              className="w-full text-xs text-stone-900 placeholder-stone-400 focus:outline-none"
+            />
+            {agencySearch && (
+              <button
+                type="button"
+                onClick={() => setAgencySearch('')}
+                className="text-stone-400 hover:text-stone-700 text-xs px-2 font-bold cursor-pointer"
+              >
+                ✕ Limpar
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {agencies.map((ag) => {
-              const agPlan = getAgencyPlan(ag);
-              const agPlanDetail = PLAN_DETAILS[agPlan];
-              const agStatusConfig = SUBSCRIPTION_STATUS_CONFIG[ag.status_assinatura || 'ACTIVE'];
-              const agProperties = properties.filter((p) => p.agencyId === ag.id);
+            {agencies
+              .filter((ag) => {
+                if (!agencySearch.trim()) return true;
+                const q = agencySearch.toLowerCase();
+                return (
+                  ag.name.toLowerCase().includes(q) ||
+                  (ag.tradeName && ag.tradeName.toLowerCase().includes(q)) ||
+                  ag.creci.toLowerCase().includes(q) ||
+                  ag.city.toLowerCase().includes(q) ||
+                  ag.state.toLowerCase().includes(q) ||
+                  ag.email.toLowerCase().includes(q)
+                );
+              })
+              .map((ag) => {
+                const agPlan = getAgencyPlan(ag);
+                const agPlanDetail = PLAN_DETAILS[agPlan];
+                const agStatusConfig = SUBSCRIPTION_STATUS_CONFIG[ag.status_assinatura || 'ACTIVE'];
+                const agProperties = properties.filter((p) => p.agencyId === ag.id);
 
-              return (
-                <div
-                  key={ag.id}
-                  className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs hover:border-stone-300 transition space-y-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={ag.logoUrl}
-                        alt={ag.tradeName || ag.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0"
-                      />
-                      <div>
-                        <h3 className="font-bold text-sm text-stone-900">{ag.tradeName || ag.name}</h3>
-                        <p className="text-xs text-stone-500 font-mono">CRECI {ag.creci} • {ag.city}, {ag.state}</p>
-                        <p className="text-[11px] text-stone-400 truncate max-w-xs">{ag.name}</p>
+                return (
+                  <div
+                    key={ag.id}
+                    className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs hover:border-stone-300 transition space-y-4 flex flex-col justify-between"
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={ag.logoUrl}
+                            alt={ag.tradeName || ag.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0 bg-stone-50"
+                          />
+                          <div>
+                            <h3 className="font-bold text-sm text-stone-900">{ag.tradeName || ag.name}</h3>
+                            <p className="text-xs text-stone-500 font-mono">CRECI {ag.creci} • {ag.city}, {ag.state}</p>
+                            <p className="text-[11px] text-stone-400 truncate max-w-xs">{ag.name}</p>
+                          </div>
+                        </div>
+
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${agPlanDetail.badgeClass}`}>
+                          {agPlanDetail.badgeLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 bg-stone-50 rounded-xl p-3 text-center text-xs">
+                        <div>
+                          <span className="text-[10px] text-stone-400 block">Imóveis</span>
+                          <strong className="text-stone-900 font-bold">{agProperties.length}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-stone-400 block">Status</span>
+                          <span className={`text-[10px] font-bold ${agStatusConfig.badgeClass}`}>
+                            {agStatusConfig.label}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-stone-400 block">Mensalidade</span>
+                          <strong className="text-emerald-700 font-bold">{agPlanDetail.priceFormatted}</strong>
+                        </div>
                       </div>
                     </div>
 
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${agPlanDetail.badgeClass}`}>
-                      {agPlanDetail.badgeLabel}
-                    </span>
+                    <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div className="text-[11px] text-stone-500 truncate">
+                        Tel: <span className="font-mono text-stone-800">{ag.phone}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCreateProperty(ag.id)}
+                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                          title="Cadastrar Novo Imóvel nesta Imobiliária"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Cadastrar Imóvel</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPropAgencyFilter(ag.id);
+                            setActiveTab('properties');
+                          }}
+                          className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-semibold transition cursor-pointer"
+                          title="Ver Imóveis desta Imobiliária"
+                        >
+                          Imóveis ({agProperties.length})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedAgencyId(ag.id);
+                            onSelectTab?.('admin');
+                          }}
+                          className="px-2 py-1 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                          title="Abrir Painel Administrativo desta Imobiliária"
+                        >
+                          Entrar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPlanAgency(ag);
+                            setIsPlanModalOpen(true);
+                          }}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold transition cursor-pointer"
+                          title="Gerenciar Plano Comercial"
+                        >
+                          Plano
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditAgency(ag)}
+                          className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold transition cursor-pointer"
+                          title="Editar Informações"
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAgency(ag)}
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          title="Excluir Imobiliária"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-2 bg-stone-50 rounded-xl p-3 text-center text-xs">
-                    <div>
-                      <span className="text-[10px] text-stone-400 block">Imóveis</span>
-                      <strong className="text-stone-900 font-bold">{agProperties.length}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-400 block">Status</span>
-                      <span className={`text-[10px] font-bold ${agStatusConfig.badgeClass}`}>
-                        {agStatusConfig.label}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-400 block">Mensalidade</span>
-                      <strong className="text-emerald-700 font-bold">{agPlanDetail.priceFormatted}</strong>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
-                    <div className="text-[11px] text-stone-500">
-                      Contato: <span className="font-mono text-stone-800">{ag.phone}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          setSelectedPlanAgency(ag);
-                          setIsPlanModalOpen(true);
-                        }}
-                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold transition cursor-pointer"
-                        title="Gerenciar Plano Comercial"
-                      >
-                        Plano
-                      </button>
-
-                      <button
-                        onClick={() => handleOpenEditAgency(ag)}
-                        className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold transition cursor-pointer"
-                        title="Editar Informações"
-                      >
-                        Editar
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteAgency(ag)}
-                        className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                        title="Excluir Imobiliária"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       )}
@@ -898,14 +1110,27 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-                <Home className="w-5 h-5 text-emerald-600" />
-                <span>Gestão Global de Imóveis do Portal</span>
-              </h2>
-              <p className="text-xs text-stone-500 mt-0.5">
-                Visualize, edite ou exclua qualquer imóvel cadastrado por qualquer imobiliária.
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                  <Home className="w-5 h-5 text-emerald-600" />
+                  <span>Gestão Global de Imóveis do Portal</span>
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                  {properties.length} imóveis
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 mt-1">
+                Poderes totais de Super Administrador: cadastre, edite ou exclua qualquer imóvel de qualquer imobiliária parceira sem restrições de limites de plano.
               </p>
             </div>
+
+            <button
+              onClick={() => handleOpenCreateProperty()}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto shrink-0"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Cadastrar Novo Imóvel (Master)</span>
+            </button>
           </div>
 
           {/* Filter Bar */}
@@ -1566,21 +1791,316 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
         </div>
       )}
 
-      {/* EDIT PROPERTY MODAL */}
+      {/* CREATE PROPERTY MODAL (SUPER ADMIN MASTER) */}
+      {isCreatePropertyOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full overflow-hidden animate-fade-in my-8 max-h-[90vh] flex flex-col">
+            <div className="bg-stone-900 text-white p-5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold">
+                  <PlusCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">Cadastrar Novo Imóvel (Master)</h3>
+                  <p className="text-xs text-stone-400">Poder total: cadastro direto em qualquer imobiliária parceira</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreatePropertyOpen(false)}
+                className="text-stone-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePropertySubmit} className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Imobiliária Responsável pelo Imóvel *
+                </label>
+                <select
+                  required
+                  value={newPropAgencyId}
+                  onChange={(e) => {
+                    setNewPropAgencyId(e.target.value);
+                    const ag = agencies.find((a) => a.id === e.target.value);
+                    if (ag) {
+                      setNewPropCity(ag.city);
+                      setNewPropState(ag.state);
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white font-bold text-stone-900 cursor-pointer"
+                >
+                  <option value="">Selecione a Imobiliária...</option>
+                  {agencies.map((ag) => (
+                    <option key={ag.id} value={ag.id}>
+                      {ag.tradeName || ag.name} (CRECI {ag.creci} • {ag.city}/{ag.state})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">Título do Imóvel *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Apartamento Moderno com Varanda Gourmet"
+                  value={newPropTitle}
+                  onChange={(e) => setNewPropTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Tipo de Imóvel</label>
+                  <select
+                    value={newPropType}
+                    onChange={(e) => setNewPropType(e.target.value as Property['type'])}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer"
+                  >
+                    <option value="apartamento">Apartamento</option>
+                    <option value="casa">Casa</option>
+                    <option value="cobertura">Cobertura</option>
+                    <option value="terreno">Terreno</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="studio">Studio</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Finalidade</label>
+                  <select
+                    value={newPropPurpose}
+                    onChange={(e) => setNewPropPurpose(e.target.value as Property['purpose'])}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer"
+                  >
+                    <option value="venda">Apenas Venda</option>
+                    <option value="locacao">Apenas Locação</option>
+                    <option value="ambos">Venda & Locação</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Aluguel (R$)</label>
+                  <input
+                    type="number"
+                    placeholder="Ex: 2500"
+                    value={newPropRent}
+                    onChange={(e) => setNewPropRent(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Venda (R$)</label>
+                  <input
+                    type="number"
+                    placeholder="Ex: 450000"
+                    value={newPropSale}
+                    onChange={(e) => setNewPropSale(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Quartos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPropBedrooms}
+                    onChange={(e) => setNewPropBedrooms(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Suítes</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPropSuites}
+                    onChange={(e) => setNewPropSuites(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Banheiros</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newPropBathrooms}
+                    onChange={(e) => setNewPropBathrooms(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Vagas</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPropGarage}
+                    onChange={(e) => setNewPropGarage(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Área Útil (m²)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newPropArea}
+                    onChange={(e) => setNewPropArea(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Endereço / Logradouro</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Av. Paulista, 1000"
+                    value={newPropAddress}
+                    onChange={(e) => setNewPropAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Bairro</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Bela Vista"
+                    value={newPropNeighborhood}
+                    onChange={(e) => setNewPropNeighborhood(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Cidade / UF</label>
+                  <div className="grid grid-cols-3 gap-1">
+                    <input
+                      type="text"
+                      placeholder="Cidade"
+                      value={newPropCity}
+                      onChange={(e) => setNewPropCity(e.target.value)}
+                      className="col-span-2 px-2 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                    />
+                    <input
+                      type="text"
+                      placeholder="UF"
+                      value={newPropState}
+                      onChange={(e) => setNewPropState(e.target.value)}
+                      className="px-2 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 uppercase"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">URL da Imagem Principal</label>
+                <input
+                  type="text"
+                  placeholder="https://images.unsplash.com/..."
+                  value={newPropImageUrl}
+                  onChange={(e) => setNewPropImageUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono text-[11px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">Descrição do Imóvel</label>
+                <textarea
+                  rows={2}
+                  placeholder="Detalhes sobre acabamentos, localização, condomínio..."
+                  value={newPropDescription}
+                  onChange={(e) => setNewPropDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                />
+              </div>
+
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
+                <div className="font-semibold text-stone-700">Condições e Financiamento</div>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newPropMcmv}
+                      onChange={(e) => setNewPropMcmv(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Minha Casa Minha Vida</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newPropFgts}
+                      onChange={(e) => setNewPropFgts(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Uso do FGTS</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newPropAnalise}
+                      onChange={(e) => setNewPropAnalise(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Análise Gratuita</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-stone-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsCreatePropertyOpen(false)}
+                  className="px-4 py-2 border border-stone-300 text-stone-700 rounded-xl font-semibold hover:bg-stone-100 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs flex items-center gap-1.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Cadastrar Imóvel (Master)</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROPERTY MODAL (FULL MASTER CONTROL) */}
       {editingProperty && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in">
-            <div className="bg-stone-900 text-white p-5 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full overflow-hidden animate-fade-in my-8 max-h-[90vh] flex flex-col">
+            <div className="bg-stone-900 text-white p-5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold">
                   <Edit className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-white">Editar Imóvel (Super Admin)</h3>
-                  <p className="text-xs text-stone-400">Cód: {editingProperty.code}</p>
+                  <h3 className="font-bold text-base text-white">Editar Imóvel (Super Admin Master)</h3>
+                  <p className="text-xs text-stone-400">Cód: {editingProperty.code} • Poder irrestrito de edição</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingProperty(null)}
                 className="text-stone-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
               >
@@ -1588,122 +2108,239 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveProperty} className="p-6 space-y-4 text-xs">
-              <div className="space-y-3">
+            <form onSubmit={handleSaveProperty} className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Imobiliária Responsável (Transferir Imóvel)
+                </label>
+                <select
+                  value={editPropAgencyId}
+                  onChange={(e) => setEditPropAgencyId(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white font-bold text-stone-900 cursor-pointer"
+                >
+                  {agencies.map((ag) => (
+                    <option key={ag.id} value={ag.id}>
+                      {ag.tradeName || ag.name} (CRECI {ag.creci} • {ag.city}/{ag.state})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">Título do Imóvel *</label>
+                <input
+                  type="text"
+                  required
+                  value={editPropTitle}
+                  onChange={(e) => setEditPropTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">Título do Imóvel *</label>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Tipo</label>
+                  <select
+                    value={editPropType}
+                    onChange={(e) => setEditPropType(e.target.value as Property['type'])}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer"
+                  >
+                    <option value="apartamento">Apartamento</option>
+                    <option value="casa">Casa</option>
+                    <option value="cobertura">Cobertura</option>
+                    <option value="terreno">Terreno</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="studio">Studio</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Finalidade</label>
+                  <select
+                    value={editPropPurpose}
+                    onChange={(e) => setEditPropPurpose(e.target.value as Property['purpose'])}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer"
+                  >
+                    <option value="venda">Apenas Venda</option>
+                    <option value="locacao">Apenas Locação</option>
+                    <option value="ambos">Venda & Locação</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Aluguel (R$)</label>
                   <input
-                    type="text"
-                    required
-                    value={editPropTitle}
-                    onChange={(e) => setEditPropTitle(e.target.value)}
+                    type="number"
+                    value={editPropRent}
+                    onChange={(e) => setEditPropRent(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Aluguel Mensal (R$)</label>
-                    <input
-                      type="number"
-                      value={editPropRent}
-                      onChange={(e) => setEditPropRent(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Valor de Venda (R$)</label>
-                    <input
-                      type="number"
-                      value={editPropSale}
-                      onChange={(e) => setEditPropSale(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Venda (R$)</label>
+                  <input
+                    type="number"
+                    value={editPropSale}
+                    onChange={(e) => setEditPropSale(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Quartos</label>
-                    <input
-                      type="number"
-                      value={editPropBedrooms}
-                      onChange={(e) => setEditPropBedrooms(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Vagas</label>
-                    <input
-                      type="number"
-                      value={editPropGarage}
-                      onChange={(e) => setEditPropGarage(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Área Útil (m²)</label>
-                    <input
-                      type="number"
-                      value={editPropArea}
-                      onChange={(e) => setEditPropArea(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
-                    />
-                  </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Quartos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPropBedrooms}
+                    onChange={(e) => setEditPropBedrooms(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">Imobiliária Responsável</label>
-                  <select
-                    value={editPropAgencyId}
-                    onChange={(e) => setEditPropAgencyId(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white cursor-pointer"
-                  >
-                    {agencies.map((ag) => (
-                      <option key={ag.id} value={ag.id}>
-                        {ag.tradeName || ag.name} (CRECI {ag.creci})
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Suítes</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPropSuites}
+                    onChange={(e) => setEditPropSuites(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
                 </div>
 
-                <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
-                  <div className="font-semibold text-stone-700">Programas de Financiamento</div>
-                  <div className="flex flex-wrap gap-4">
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editPropMcmv}
-                        onChange={(e) => setEditPropMcmv(e.target.checked)}
-                        className="rounded text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span>Minha Casa Minha Vida</span>
-                    </label>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Banheiros</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editPropBathrooms}
+                    onChange={(e) => setEditPropBathrooms(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
 
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editPropFgts}
-                        onChange={(e) => setEditPropFgts(e.target.checked)}
-                        className="rounded text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span>Uso do FGTS</span>
-                    </label>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Vagas</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPropGarage}
+                    onChange={(e) => setEditPropGarage(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
 
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editPropAnalise}
-                        onChange={(e) => setEditPropAnalise(e.target.checked)}
-                        className="rounded text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span>Análise Gratuita</span>
-                    </label>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Área Útil (m²)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editPropArea}
+                    onChange={(e) => setEditPropArea(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Endereço / Logradouro</label>
+                  <input
+                    type="text"
+                    value={editPropAddress}
+                    onChange={(e) => setEditPropAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Bairro</label>
+                  <input
+                    type="text"
+                    value={editPropNeighborhood}
+                    onChange={(e) => setEditPropNeighborhood(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Cidade / UF</label>
+                  <div className="grid grid-cols-3 gap-1">
+                    <input
+                      type="text"
+                      value={editPropCity}
+                      onChange={(e) => setEditPropCity(e.target.value)}
+                      className="col-span-2 px-2 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                    />
+                    <input
+                      type="text"
+                      value={editPropState}
+                      onChange={(e) => setEditPropState(e.target.value)}
+                      className="px-2 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 uppercase"
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-stone-200">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">URL da Imagem</label>
+                <input
+                  type="text"
+                  value={editPropImageUrl}
+                  onChange={(e) => setNewEditPropImageUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono text-[11px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">Descrição</label>
+                <textarea
+                  rows={2}
+                  value={editPropDescription}
+                  onChange={(e) => setEditPropDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl focus:outline-emerald-600"
+                />
+              </div>
+
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
+                <div className="font-semibold text-stone-700">Programas de Financiamento</div>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editPropMcmv}
+                      onChange={(e) => setEditPropMcmv(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Minha Casa Minha Vida</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editPropFgts}
+                      onChange={(e) => setEditPropFgts(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Uso do FGTS</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editPropAnalise}
+                      onChange={(e) => setEditPropAnalise(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Análise Gratuita</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-stone-200 shrink-0">
                 <button
                   type="button"
                   onClick={() => setEditingProperty(null)}
@@ -1715,7 +2352,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                   type="submit"
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs"
                 >
-                  Salvar Imóvel
+                  Salvar Alterações
                 </button>
               </div>
             </form>
