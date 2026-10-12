@@ -16,7 +16,7 @@ import { Property, FilterState } from './types';
 import { Building2, ShieldCheck, MapPin, Phone, Heart, Sparkles, RefreshCw, Calculator, Crown } from 'lucide-react';
 
 function MainAppContent() {
-  const { properties, agencies, resetToDefaults, currentUser } = useApp();
+  const { properties, agencies, resetToDefaults, currentUser, recordUserActivity } = useApp();
 
   const [currentTab, setCurrentTab] = useState<'home' | 'properties' | 'map' | 'favorites' | 'simulator' | 'admin' | 'super_admin'>('home');
   const [selectedPropertyForDetail, setSelectedPropertyForDetail] = useState<Property | null>(null);
@@ -25,6 +25,18 @@ function MainAppContent() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [superAdminLoginOpen, setSuperAdminLoginOpen] = useState(false);
   const [passedFilters, setPassedFilters] = useState<Partial<FilterState>>({});
+
+  // Record user navigation activity (hidden in background)
+  React.useEffect(() => {
+    recordUserActivity?.();
+  }, [currentTab, recordUserActivity]);
+
+  // Clean transition to home if session expires while in restricted tab
+  React.useEffect(() => {
+    if (!currentUser && currentTab === 'super_admin') {
+      setCurrentTab('home');
+    }
+  }, [currentUser, currentTab]);
 
   const handleGoToSearch = (filters?: Partial<FilterState>) => {
     if (filters) {

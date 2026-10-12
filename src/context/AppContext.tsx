@@ -84,9 +84,13 @@ interface AppContextType {
   getAgencyById: (agencyId: string) => Agency | undefined;
   getVisitsForPropertyAndDate: (propertyId: string, date: string) => VisitAppointment[];
   resetToDefaults: () => void;
+  recordUserActivity?: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// 90 minutes inactivity timeout (5,400,000 ms) - completely hidden from users
+const INACTIVITY_TIMEOUT_MS = 90 * 60 * 1000;
 
 const STORAGE_KEYS = {
   AGENCIES: 'imobirede_agencies_v5',
@@ -98,6 +102,7 @@ const STORAGE_KEYS = {
   SITE_CREATOR_MODE: 'imobirede_site_creator_mode_v4',
   TICKETS: 'imobirede_tickets_v1',
   AGENCY_CHAT: 'imobirede_agency_chat_v1',
+  LAST_ACTIVITY: 'imobirede_last_activity_v4',
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -208,6 +213,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
+      // Inactivity timeout check: if inactive for >= 90 minutes, disconnect session
+      const lastActivityStr = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY);
+      if (lastActivityStr) {
+        const lastActivityTime = Number(lastActivityStr);
+        if (!isNaN(lastActivityTime) && lastActivityTime > 0 && Date.now() - lastActivityTime >= INACTIVITY_TIMEOUT_MS) {
+          localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+          localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY);
+          return null;
+        }
+      }
+
       const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -640,6 +656,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existingUser) {
       setCurrentUser(existingUser);
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
       if (existingUser.role === 'super_admin' || existingUser.role === 'site_creator' || existingUser.id === 'user-superadmin') {
         setIsSiteCreatorMode(true);
       }
@@ -663,6 +680,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     setUsers((prev) => [...prev, newUser]);
     setCurrentUser(newUser);
+    localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
     if (agencyId) {
       setSelectedAgencyId(agencyId);
     }
@@ -689,6 +707,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     setCurrentUser(user);
+    localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
     if (user.role === 'super_admin' || user.role === 'site_creator' || user.id === 'user-superadmin') {
       setIsSiteCreatorMode(true);
     } else {
@@ -721,6 +740,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         email: 'superadmin@imobirede.com.br',
       };
       setCurrentUser(masterUser);
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
       setIsSiteCreatorMode(true);
       return true;
     }
@@ -729,6 +749,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (password === 'superadmin123') {
       const sa = users.find((u) => u.id === 'user-superadmin') || INITIAL_USERS[0];
       setCurrentUser(sa);
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
       setIsSiteCreatorMode(true);
       return true;
     }
@@ -740,6 +761,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existing) {
       setCurrentUser(existing);
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
       return existing;
     }
 
@@ -757,6 +779,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setUsers((prev) => [...prev, newUser]);
     setCurrentUser(newUser);
+    localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()));
     return newUser;
   };
 
@@ -930,7 +953,105 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logoutUser = () => {
     setCurrentUser(null);
     setIsSiteCreatorMode(false);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY);
   };
+
+  const recordUserActivity = () => {
+    if (!currentUser) return;
+    const now = Date.now();
+    localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(now));
+  };
+
+  // Automatic security logout on lack of movement/navigation >= 90 minutes.
+  // The inactivity timer is completely hidden and invisible to all users.
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    // Initialize or verify last activity timestamp
+    const storedLast = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY);
+    let lastActivityTime = storedLast ? Number(storedLast) : Date.now();
+    if (!storedLast || isNaN(lastActivityTime) || lastActivityTime <= 0) {
+      lastActivityTime = Date.now();
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(lastActivityTime));
+    }
+
+    // Function to verify elapsed time and disconnect if inactive for >= 90 minutes
+    const checkInactivity = () => {
+      const storedTime = Number(localStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY));
+      const targetTime = !isNaN(storedTime) && storedTime > 0 ? storedTime : lastActivityTime;
+      if (Date.now() - targetTime >= INACTIVITY_TIMEOUT_MS) {
+        logoutUser();
+      }
+    };
+
+    // Immediate check
+    checkInactivity();
+
+    // Throttled handler for user interaction and movement events
+    let lastThrottledTime = Date.now();
+    const handleUserActivity = () => {
+      const now = Date.now();
+      lastActivityTime = now;
+      if (now - lastThrottledTime >= 3000) {
+        lastThrottledTime = now;
+        localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(now));
+      }
+    };
+
+    const activityEvents: (keyof WindowEventMap)[] = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'wheel',
+      'click',
+    ];
+
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, handleUserActivity as EventListener, { passive: true });
+    });
+
+    const handleVisibilityOrFocus = () => {
+      checkInactivity();
+      if (document.visibilityState === 'visible') {
+        handleUserActivity();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEYS.LAST_ACTIVITY && e.newValue) {
+        const val = Number(e.newValue);
+        if (!isNaN(val)) {
+          lastActivityTime = val;
+        }
+      }
+      if (e.key === STORAGE_KEYS.CURRENT_USER && !e.newValue) {
+        setCurrentUser(null);
+        setIsSiteCreatorMode(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // Background interval check every 15 seconds
+    const intervalId = setInterval(checkInactivity, 15000);
+
+    return () => {
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, handleUserActivity as EventListener);
+      });
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(intervalId);
+    };
+  }, [currentUser]);
 
   const resetToDefaults = () => {
     setAgencies(INITIAL_AGENCIES);
@@ -996,6 +1117,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         getAgencyById,
         getVisitsForPropertyAndDate,
         resetToDefaults,
+        recordUserActivity,
       }}
     >
       {children}
