@@ -40,7 +40,6 @@ import { MasterPlanManagementTab } from './MasterPlanManagementTab';
 import { ManageAgencyPlanModal } from './ManageAgencyPlanModal';
 import { SuperAdminTicketsTab } from './SuperAdminTicketsTab';
 import { InterAgencyChatTab } from './InterAgencyChatTab';
-import { AgencyAdminSelector } from './AgencyAdminSelector';
 
 interface SuperAdminPanelProps {
   onViewProperty: (property: Property) => void;
@@ -117,13 +116,6 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
   const [newAgencyCity, setNewAgencyCity] = useState('');
   const [newAgencyState, setNewAgencyState] = useState('SP');
   const [newAgencyPlano, setNewAgencyPlano] = useState<PlanType>('PROFISSIONAL');
-  const [adminChoiceMode, setAdminChoiceMode] = useState<'existing' | 'new'>('new');
-  const [adminSearchQuery, setAdminSearchQuery] = useState('');
-  const [selectedExistingAdminId, setSelectedExistingAdminId] = useState<string>('');
-  const [newAdminName, setNewAdminName] = useState('');
-  const [newAdminEmail, setNewAdminEmail] = useState('');
-  const [newAdminPassword, setNewAdminPassword] = useState('imobiliaria123');
-  const [newAdminPhone, setNewAdminPhone] = useState('');
 
   // Feedback toast
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -261,31 +253,14 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       return;
     }
 
-    if (adminChoiceMode === 'existing') {
-      if (!selectedExistingAdminId) {
-        triggerToast('Por favor, selecione um administrador na lista com pesquisa.');
-        return;
-      }
-    } else {
-      if (!newAdminName.trim() || !newAdminEmail.trim()) {
-        triggerToast('Por favor, informe Nome e E-mail do Administrador da imobiliária.');
-        return;
-      }
-    }
-
-    const assignedAdmin = users.find((u) => u.id === selectedExistingAdminId);
-    const assignedAdminEmail = adminChoiceMode === 'existing'
-      ? (assignedAdmin?.email || newAgencyEmail.trim().toLowerCase() || 'admin@imobiliaria.com.br')
-      : newAdminEmail.trim().toLowerCase();
-
     addAgency({
       name: newAgencyName.trim(),
       tradeName: newAgencyTradeName.trim() || newAgencyName.trim(),
       creci: newAgencyCreci.trim(),
       phone: newAgencyPhone.trim() || '(11) 3300-0000',
       whatsapp: newAgencyWhatsApp.trim() || '5511999998888',
-      email: newAgencyEmail.trim().toLowerCase() || assignedAdminEmail,
-      adminEmail: assignedAdminEmail,
+      email: newAgencyEmail.trim().toLowerCase() || 'contato@imobiliaria.com.br',
+      adminEmail: newAgencyEmail.trim().toLowerCase() || 'admin@imobiliaria.com.br',
       address: 'Endereço Comercial Central',
       city: newAgencyCity.trim() || 'São Paulo',
       state: newAgencyState.trim() || 'SP',
@@ -295,18 +270,9 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       status_assinatura: 'ACTIVE',
       subscriptionStartDate: new Date().toISOString().split('T')[0],
       subscriptionRenewalDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    }, {
-      type: adminChoiceMode,
-      existingUserId: adminChoiceMode === 'existing' ? selectedExistingAdminId : undefined,
-      newAdmin: adminChoiceMode === 'new' ? {
-        name: newAdminName.trim(),
-        email: newAdminEmail.trim().toLowerCase(),
-        password: newAdminPassword.trim() || 'imobiliaria123',
-        phone: newAdminPhone.trim() || newAgencyWhatsApp.trim(),
-      } : undefined,
     });
 
-    triggerToast(`Nova imobiliária "${newAgencyTradeName || newAgencyName}" criada com administrador vinculado com sucesso!`);
+    triggerToast(`Nova imobiliária "${newAgencyTradeName || newAgencyName}" criada com sucesso!`);
     setIsCreateAgencyOpen(false);
     setNewAgencyName('');
     setNewAgencyTradeName('');
@@ -315,13 +281,6 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     setNewAgencyWhatsApp('');
     setNewAgencyEmail('');
     setNewAgencyCity('');
-    setAdminChoiceMode('new');
-    setSelectedExistingAdminId('');
-    setAdminSearchQuery('');
-    setNewAdminName('');
-    setNewAdminEmail('');
-    setNewAdminPassword('imobiliaria123');
-    setNewAdminPhone('');
   };
 
   const handleOpenCreateProperty = (preselectedAgencyId?: string) => {
@@ -1813,26 +1772,6 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                 </div>
               </div>
 
-              {/* Administrator Linking & Creation Component */}
-              <AgencyAdminSelector
-                mode={adminChoiceMode}
-                setMode={setAdminChoiceMode}
-                users={users}
-                selectedUserId={selectedExistingAdminId}
-                onSelectUser={setSelectedExistingAdminId}
-                searchQuery={adminSearchQuery}
-                setSearchQuery={setAdminSearchQuery}
-                newAdminName={newAdminName}
-                setNewAdminName={setNewAdminName}
-                newAdminEmail={newAdminEmail}
-                setNewAdminEmail={setNewAdminEmail}
-                newAdminPassword={newAdminPassword}
-                setNewAdminPassword={setNewAdminPassword}
-                newAdminPhone={newAdminPhone}
-                setNewAdminPhone={setNewAdminPhone}
-                getAgencyById={getAgencyById}
-              />
-
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-stone-200 shrink-0">
                 <button
                   type="button"
@@ -1845,7 +1784,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                   type="submit"
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs"
                 >
-                  Criar Imobiliária & Vincular Admin
+                  Criar Imobiliária
                 </button>
               </div>
             </form>

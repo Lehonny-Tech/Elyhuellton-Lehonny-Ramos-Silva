@@ -34,19 +34,7 @@ interface AppContextType {
   isSuperAdmin: boolean;
   isSiteCreatorMode: boolean;
   setIsSiteCreatorMode: (mode: boolean) => void;
-  addAgency: (
-    agencyData: Omit<Agency, 'id'>,
-    adminUserOption?: {
-      type: 'existing' | 'new';
-      existingUserId?: string;
-      newAdmin?: {
-        name: string;
-        email: string;
-        password?: string;
-        phone?: string;
-      };
-    }
-  ) => Agency;
+  addAgency: (agencyData: Omit<Agency, 'id'>) => Agency;
   updateAgency: (id: string, updates: Partial<Agency>) => void;
   deleteAgency: (agencyId: string) => void;
   updateAgencyPlan: (
@@ -750,19 +738,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return agencies.find((a) => a.id === agencyId);
   };
 
-  const addAgency = (
-    agencyData: Omit<Agency, 'id'>,
-    adminUserOption?: {
-      type: 'existing' | 'new';
-      existingUserId?: string;
-      newAdmin?: {
-        name: string;
-        email: string;
-        password?: string;
-        phone?: string;
-      };
-    }
-  ): Agency => {
+  const addAgency = (agencyData: Omit<Agency, 'id'>): Agency => {
     const id = `ag-${Date.now()}`;
     const newAgency: Agency = {
       ...agencyData,
@@ -781,95 +757,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       syncAllAgenciesStorage(updated);
       return updated;
     });
-
-    // Handle Administrator indication, creation and binding
-    if (adminUserOption && adminUserOption.type === 'existing' && adminUserOption.existingUserId) {
-      setUsers((prevUsers) => {
-        const updated = prevUsers.map((u) => {
-          if (u.id === adminUserOption.existingUserId) {
-            return {
-              ...u,
-              role: 'agency_admin' as const,
-              agencyId: id,
-            };
-          }
-          return u;
-        });
-        syncAllUsersStorage(updated);
-        return updated;
-      });
-    } else if (adminUserOption && adminUserOption.type === 'new' && adminUserOption.newAdmin) {
-      const { name, email, password, phone } = adminUserOption.newAdmin;
-      const cleanEmail = email.toLowerCase().trim();
-      setUsers((prevUsers) => {
-        const existingIdx = prevUsers.findIndex((u) => u.email.toLowerCase() === cleanEmail);
-        let updated: User[];
-        if (existingIdx >= 0) {
-          updated = prevUsers.map((u, i) =>
-            i === existingIdx
-              ? {
-                  ...u,
-                  name: name || u.name,
-                  role: 'agency_admin' as const,
-                  agencyId: id,
-                  phone: phone || u.phone,
-                  password: password || u.password || 'imobiliaria123',
-                }
-              : u
-          );
-        } else {
-          const newAdminUser: User = {
-            id: `user-${Date.now()}`,
-            name: name || `Admin - ${newAgency.tradeName || newAgency.name}`,
-            email: cleanEmail,
-            password: password || 'imobiliaria123',
-            role: 'agency_admin',
-            agencyId: id,
-            phone: phone || undefined,
-            favorites: [],
-            createdAt: new Date().toISOString().split('T')[0],
-            status: 'active',
-            firstAccess: false,
-          };
-          updated = [...prevUsers, newAdminUser];
-        }
-        syncAllUsersStorage(updated);
-        return updated;
-      });
-    } else {
-      // Default auto-provision fallback if no explicit admin was selected
-      const adminEmail = (
-        newAgency.adminEmail ||
-        newAgency.email ||
-        `admin@${newAgency.name.toLowerCase().replace(/\s+/g, '')}.com.br`
-      ).toLowerCase().trim();
-
-      setUsers((prevUsers) => {
-        const existingUserIndex = prevUsers.findIndex((u) => u.email.toLowerCase() === adminEmail);
-        let updatedUsers: User[];
-        if (existingUserIndex >= 0) {
-          updatedUsers = prevUsers.map((u, i) =>
-            i === existingUserIndex ? { ...u, agencyId: id, role: 'agency_admin' as const } : u
-          );
-        } else {
-          const newAdminUser: User = {
-            id: `user-${Date.now()}`,
-            name: `Admin - ${newAgency.tradeName || newAgency.name}`,
-            email: adminEmail,
-            password: 'imobiliaria123',
-            role: 'agency_admin',
-            agencyId: id,
-            favorites: [],
-            createdAt: new Date().toISOString().split('T')[0],
-            status: 'active',
-            firstAccess: false,
-          };
-          updatedUsers = [...prevUsers, newAdminUser];
-        }
-        syncAllUsersStorage(updatedUsers);
-        return updatedUsers;
-      });
-    }
 
     return newAgency;
   };

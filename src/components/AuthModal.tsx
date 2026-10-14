@@ -40,7 +40,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     users,
     updateUserPassword,
     agencies,
-    addAgency,
   } = useApp();
 
   const [mode, setMode] = useState<'login' | 'register' | 'superadmin' | 'reset_password' | 'first_access'>(defaultMode);
@@ -52,16 +51,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-  // Agency registration state
-  const [registerType, setRegisterType] = useState<'client' | 'agency'>('client');
-  const [regAgencyName, setRegAgencyName] = useState('');
-  const [regAgencyTradeName, setRegAgencyTradeName] = useState('');
-  const [regAgencyCreci, setRegAgencyCreci] = useState('');
-  const [regAgencyCity, setRegAgencyCity] = useState('');
-  const [regAgencyState, setRegAgencyState] = useState('SP');
-  const [regAgencyWhatsApp, setRegAgencyWhatsApp] = useState('');
-  const [regAgencyPlan, setRegAgencyPlan] = useState<'ESSENCIAL' | 'PROFISSIONAL' | 'PREMIUM'>('PROFISSIONAL');
 
   // Reset password ticket state
   const [resetRequesterType, setResetRequesterType] = useState<'client' | 'agency_admin'>('client');
@@ -189,55 +178,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     if (mode === 'register') {
-      if (registerType === 'agency') {
-        if (!regAgencyName.trim() || !regAgencyCreci.trim()) {
-          setError('Razão Social e CRECI da imobiliária são obrigatórios.');
-          return;
-        }
-        if (!password.trim()) {
-          setError('Defina uma senha de acesso para o administrador da imobiliária.');
-          return;
-        }
-
-        const created = addAgency({
-          name: regAgencyName.trim(),
-          tradeName: regAgencyTradeName.trim() || regAgencyName.trim(),
-          creci: regAgencyCreci.trim(),
-          phone: phone.trim() || regAgencyWhatsApp.trim() || '(11) 3300-0000',
-          whatsapp: regAgencyWhatsApp.trim() || phone.trim() || '5511999998888',
-          email: email.trim().toLowerCase(),
-          adminEmail: email.trim().toLowerCase(),
-          address: 'Endereço Comercial Central',
-          city: regAgencyCity.trim() || 'São Paulo',
-          state: regAgencyState.trim() || 'SP',
-          description: 'Imobiliária parceira credenciada no portal.',
-          logoUrl: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=200&q=80',
-          plano: regAgencyPlan,
-          status_assinatura: 'ACTIVE',
-          subscriptionStartDate: new Date().toISOString().split('T')[0],
-          subscriptionRenewalDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-        }, {
-          type: 'new',
-          newAdmin: {
-            name: name.trim() || `Admin - ${regAgencyTradeName.trim() || regAgencyName.trim()}`,
-            email: email.trim().toLowerCase(),
-            password: password.trim() || 'imobiliaria123',
-            phone: phone.trim() || regAgencyWhatsApp.trim(),
-          },
-        });
-
-        loginUserWithPassword(email.trim().toLowerCase(), password.trim() || 'imobiliaria123');
-        setSuccessMsg(`Imobiliária "${created.name}" cadastrada com sucesso! Bem-vindo(a) ao portal.`);
-        setTimeout(() => onClose(), 1200);
-        return;
-      }
-
       if (!name.trim()) {
-        setError('Por favor, informe seu nome.');
+        setError('Por favor, informe seu nome completo.');
         return;
       }
-      registerUser(name, email, phone, password);
-      onClose();
+      if (!password.trim()) {
+        setError('Defina uma senha de acesso para sua conta.');
+        return;
+      }
+      registerUser(name.trim(), email.trim().toLowerCase(), phone.trim(), password.trim());
+      setSuccessMsg('Cadastro realizado com sucesso! Bem-vindo(a) ao portal.');
+      setTimeout(() => onClose(), 1000);
+      return;
     } else {
       const res = loginUserWithPassword(email, password);
       if (res.success) {
@@ -649,143 +601,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {mode === 'register' && (
               <div className="space-y-3">
-                <div className="flex p-1 bg-stone-100 rounded-xl text-xs font-semibold gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setRegisterType('client')}
-                    className={`flex-1 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      registerType === 'client'
-                        ? 'bg-white text-emerald-800 shadow-2xs font-bold'
-                        : 'text-stone-600 hover:text-stone-900'
-                    }`}
-                  >
-                    <UserIcon className="w-3.5 h-3.5" />
-                    <span>Cliente / Comprador</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRegisterType('agency')}
-                    className={`flex-1 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      registerType === 'agency'
-                        ? 'bg-white text-emerald-800 shadow-2xs font-bold'
-                        : 'text-stone-600 hover:text-stone-900'
-                    }`}
-                  >
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>Imobiliária Parceira</span>
-                  </button>
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 mb-1">Nome Completo *</label>
+                  <div className="relative">
+                    <UserIcon className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Seu nome completo"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600"
+                    />
+                  </div>
                 </div>
 
-                {registerType === 'client' ? (
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">Nome Completo *</label>
-                    <div className="relative">
-                      <UserIcon className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="Seu nome completo"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600"
-                      />
-                    </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 mb-1">Telefone / WhatsApp</label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="(11) 99999-8888"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono"
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-3 p-3 bg-emerald-50/50 border border-emerald-200 rounded-2xl">
-                    <div className="font-bold text-xs text-emerald-950 flex items-center gap-1.5">
-                      <Building2 className="w-4 h-4 text-emerald-700" />
-                      <span>Dados da Imobiliária</span>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1">Razão Social da Imobiliária *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: Alfa Gestão Imobiliária LTDA"
-                        value={regAgencyName}
-                        onChange={(e) => setRegAgencyName(e.target.value)}
-                        className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-medium text-stone-700 mb-1">Nome Fantasia</label>
-                        <input
-                          type="text"
-                          placeholder="Ex: Alfa Imóveis"
-                          value={regAgencyTradeName}
-                          onChange={(e) => setRegAgencyTradeName(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-stone-700 mb-1">CRECI Jurídico *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Ex: 54321-J"
-                          value={regAgencyCreci}
-                          onChange={(e) => setRegAgencyCreci(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2">
-                        <label className="block text-xs font-medium text-stone-700 mb-1">Cidade Sede *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Ex: São Paulo"
-                          value={regAgencyCity}
-                          onChange={(e) => setRegAgencyCity(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-stone-700 mb-1">UF *</label>
-                        <input
-                          type="text"
-                          required
-                          maxLength={2}
-                          placeholder="SP"
-                          value={regAgencyState}
-                          onChange={(e) => setRegAgencyState(e.target.value.toUpperCase())}
-                          className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600 uppercase font-bold text-center"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1">WhatsApp Comercial *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: (11) 99876-5432"
-                        value={regAgencyWhatsApp}
-                        onChange={(e) => setRegAgencyWhatsApp(e.target.value)}
-                        className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1">Plano Desejado</label>
-                      <select
-                        value={regAgencyPlan}
-                        onChange={(e) => setRegAgencyPlan(e.target.value as any)}
-                        className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl focus:outline-emerald-600 bg-white"
-                      >
-                        <option value="ESSENCIAL">Plano Essencial (Até 15 imóveis)</option>
-                        <option value="PROFISSIONAL">Plano Profissional (Até 60 imóveis + Agendamentos)</option>
-                        <option value="PREMIUM">Plano Premium (Ilimitado + Destaques Master)</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             )}
 
