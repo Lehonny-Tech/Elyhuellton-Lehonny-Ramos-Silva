@@ -54,6 +54,7 @@ import { SuperAdminUsersManagementTab } from './SuperAdminUsersManagementTab';
 import { AgencySupportTicketsTab } from './AgencySupportTicketsTab';
 import { InterAgencyChatTab } from './InterAgencyChatTab';
 import { SuperAdminTicketsTab } from './SuperAdminTicketsTab';
+import { AgencyAdminSelector } from './AgencyAdminSelector';
 
 interface AdminPanelProps {
   onViewProperty: (property: Property) => void;
@@ -119,7 +120,7 @@ const readFileAsOptimizedDataUrl = (file: File): Promise<string> => {
       const result = e.target?.result as string;
       const img = new Image();
       img.onload = () => {
-        const maxDim = 1920;
+        const maxDim = 1280;
         let width = img.width;
         let height = img.height;
         if (width > maxDim || height > maxDim) {
@@ -137,7 +138,7 @@ const readFileAsOptimizedDataUrl = (file: File): Promise<string> => {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
         } else {
           resolve(result);
         }
@@ -157,6 +158,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const {
     currentUser,
+    users,
     agencies,
     currentAgency,
     selectedAgencyId,
@@ -186,6 +188,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       currentUser.id === 'user-superadmin')
   );
   const isAgencyAdmin = currentUser?.role === 'agency_admin';
+  const isViewingAllAgencies = isSuperAdmin && (selectedAgencyId === 'all' || !selectedAgencyId);
   const effectiveAgencyId = (isAgencyAdmin && currentUser?.agencyId)
     ? currentUser.agencyId
     : selectedAgencyId;
@@ -193,7 +196,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Active agency: strictly user's agency for agency_admin, or selectedAgencyId for super admin
   const activeAgency = isAgencyAdmin
     ? (agencies.find((a) => a.id === currentUser?.agencyId) || currentAgency)
-    : currentAgency;
+    : (isViewingAllAgencies ? (agencies.find((a) => a.id === selectedAgencyId) || currentAgency || agencies[0]) : currentAgency);
+
+  // Property agency assignment state for Super Admin
+  const [formAgencyId, setFormAgencyId] = useState<string>('');
+
+  // Agency Administrator selection and creation state
+  const [adminChoiceMode, setAdminChoiceMode] = useState<'existing' | 'new'>('new');
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [selectedExistingAdminId, setSelectedExistingAdminId] = useState<string>('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('imobiliaria123');
+  const [newAdminPhone, setNewAdminPhone] = useState('');
 
   // Permitted tabs for Agency Admins (strictly agency-scoped)
   const allowedAgencyAdminTabs = ['properties', 'new_property', 'visits', 'my_plan', 'tickets', 'agency_chat'];
@@ -391,11 +406,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return d.toISOString().split('T')[0];
   });
 
-  // Agency properties - STRICTLY isolated to the active agency
-  const currentAgencyProperties = properties.filter((p) => p.agencyId === effectiveAgencyId);
+  // Agency properties - isolated to active agency, or ALL properties when Super Admin is viewing all
+  const currentAgencyProperties = isViewingAllAgencies
+    ? properties
+    : properties.filter((p) => p.agencyId === effectiveAgencyId);
 
-  // Agency visits - STRICTLY isolated to the active agency
-  const currentAgencyVisits = visits.filter((v) => v.agencyId === effectiveAgencyId);
+  // Agency visits - isolated to active agency, or ALL visits when Super Admin is viewing all
+  const currentAgencyVisits = isViewingAllAgencies
+    ? visits
+    : visits.filter((v) => v.agencyId === effectiveAgencyId);
 
   // Current Agency Plan & Permissions
   const currentAgencyPlan = getAgencyPlan(activeAgency);
@@ -431,28 +450,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    if (adminChoiceMode === 'existing') {
+      if (!selectedExistingAdminId) {
+        alert('Por favor, selecione um administrador da rede na lista pesquisável para vincular à imobiliária.');
+        return;
+      }
+    } else {
+      if (!newAdminName.trim() || !newAdminEmail.trim()) {
+        alert('Por favor, informe o Nome Completo e E-mail do Administrador da imobiliária.');
+        return;
+      }
+    }
+
+    const assignedAdmin = users.find((u) => u.id === selectedExistingAdminId);
+    const assignedAdminEmail = adminChoiceMode === 'existing'
+      ? (assignedAdmin?.email || agencyEmail || 'admin@imobiliaria.com.br')
+      : newAdminEmail.trim().toLowerCase();
+
     const created = addAgency({
-      name: agencyName,
-      tradeName: agencyTradeName || agencyName,
-      creci: agencyCreci,
-      phone: agencyPhone || agencyWhatsApp,
-      whatsapp: agencyWhatsApp,
-      email: agencyEmail || 'contato@imobiliaria.com.br',
-      address: agencyAddress,
-      city: agencyCity || 'São Paulo',
-      state: agencyState || 'SP',
-      description: agencyBio || 'Imobiliária cadastrada na rede com gestão independente de imóveis.',
-      adminEmail: agencyEmail || `admin@${agencyName.toLowerCase().replace(/\s+/g, '')}.com.br`,
+      name: agencyName.trim(),
+      tradeName: agencyTradeName.trim() || agencyName.trim(),
+      creci: agencyCreci.trim(),
+      phone: agencyPhone.trim() || agencyWhatsApp.trim(),
+      whatsapp: agencyWhatsApp.trim(),
+      email: agencyEmail.trim() || assignedAdminEmail,
+      address: agencyAddress.trim(),
+      city: agencyCity.trim() || 'São Paulo',
+      state: agencyState.trim() || 'SP',
+      description: agencyBio.trim() || 'Imobiliária cadastrada na rede com gestão independente de imóveis.',
+      adminEmail: assignedAdminEmail,
       logoUrl:
         'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=200&q=80',
       plano: agencyPlan,
       status_assinatura: agencyStatus,
       subscriptionStartDate: new Date().toISOString().split('T')[0],
       subscriptionRenewalDate: agencyRenewalDate,
+    }, {
+      type: adminChoiceMode,
+      existingUserId: adminChoiceMode === 'existing' ? selectedExistingAdminId : undefined,
+      newAdmin: adminChoiceMode === 'new' ? {
+        name: newAdminName.trim(),
+        email: newAdminEmail.trim().toLowerCase(),
+        password: newAdminPassword.trim() || 'imobiliaria123',
+        phone: newAdminPhone.trim() || agencyWhatsApp.trim(),
+      } : undefined,
     });
 
     setSelectedAgencyId(created.id);
-    setSuccessNotice(`Imobiliária "${created.name}" cadastrada com sucesso no Plano ${PLAN_DETAILS[agencyPlan].name}!`);
+    setSuccessNotice(`Imobiliária "${created.name}" cadastrada com sucesso com administrador vinculado no Plano ${PLAN_DETAILS[agencyPlan].name}!`);
     setTimeout(() => setSuccessNotice(''), 4000);
     setActiveTab('properties');
 
@@ -462,6 +507,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setAgencyCreci('');
     setAgencyPhone('');
     setAgencyWhatsApp('');
+    setAgencyEmail('');
+    setAgencyCity('');
+    setAgencyAddress('');
+    setAgencyBio('');
+    setAdminChoiceMode('new');
+    setSelectedExistingAdminId('');
+    setAdminSearchQuery('');
+    setNewAdminName('');
+    setNewAdminEmail('');
+    setNewAdminPassword('imobiliaria123');
+    setNewAdminPhone('');
   };
 
   const openEditAgencyModal = (agency: Agency) => {
@@ -598,8 +654,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
+    const targetAgencyId = isAgencyAdmin
+      ? (currentUser?.agencyId || effectiveAgencyId || agencies[0]?.id)
+      : (formAgencyId || (effectiveAgencyId !== 'all' ? effectiveAgencyId : null) || agencies[0]?.id);
+
     const propData = {
-      agencyId: effectiveAgencyId,
+      agencyId: targetAgencyId,
       title: formTitle,
       description: formDescription || 'Excelente imóvel em localização privilegiada.',
       type: formType,
@@ -643,7 +703,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         alert('Acesso negado: Você não tem permissão para editar imóveis de outra imobiliária.');
         return;
       }
-      updateProperty(editingPropertyId, { ...propData, agencyId: effectiveAgencyId });
+      updateProperty(editingPropertyId, { ...propData, agencyId: targetAgencyId });
       setSuccessNotice('Imóvel atualizado com sucesso!');
       setEditingPropertyId(null);
     } else {
@@ -683,6 +743,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
     setEditingPropertyId(prop.id);
+    setFormAgencyId(prop.agencyId);
     setFormTitle(prop.title);
     setFormDescription(prop.description);
     setFormType(prop.type);
@@ -722,6 +783,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const resetPropertyForm = () => {
     setEditingPropertyId(null);
+    setFormAgencyId('');
     setFormTitle('');
     setFormDescription('');
     setFormRentPrice('');
@@ -901,10 +963,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     Imobiliária em Foco (Master):
                   </label>
                   <select
-                    value={selectedAgencyId || ''}
+                    value={selectedAgencyId || 'all'}
                     onChange={(e) => setSelectedAgencyId(e.target.value)}
                     className="bg-transparent text-white font-medium focus:outline-hidden cursor-pointer"
                   >
+                    <option value="all" className="bg-stone-900 text-amber-300 font-bold">
+                      ★ Todas as Imobiliárias (Visão Master Global - {agencies.length} empresas)
+                    </option>
                     {agencies.map((ag) => {
                       const agPlan = getAgencyPlan(ag);
                       return (
@@ -1539,6 +1604,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <h3 className="text-xs font-bold text-stone-700 uppercase tracking-wider">
               1. Identificação do Imóvel
             </h3>
+            <div className="space-y-4">
+              {isSuperAdmin ? (
+                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 space-y-1.5">
+                  <label className="block text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                    Imobiliária Responsável pelo Imóvel (Controle Master) *
+                  </label>
+                  <select
+                    required
+                    value={formAgencyId || (effectiveAgencyId !== 'all' ? effectiveAgencyId : '') || agencies[0]?.id || ''}
+                    onChange={(e) => setFormAgencyId(e.target.value)}
+                    className="w-full text-xs px-3 py-2 border border-amber-300 rounded-lg focus:outline-emerald-600 bg-white font-bold text-stone-900 cursor-pointer"
+                  >
+                    {agencies.map((ag) => (
+                      <option key={ag.id} value={ag.id}>
+                        {ag.tradeName || ag.name} (CRECI {ag.creci} • {ag.city}/{ag.state})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-amber-800">
+                    Como Super Administrador Master, você tem poder total de cadastrar ou editar imóveis vinculados a qualquer imobiliária credenciada na rede.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                    <span className="text-stone-500 font-medium">Imobiliária Responsável:</span>
+                    <strong className="text-stone-900">{activeAgency?.tradeName || activeAgency?.name}</strong>
+                  </div>
+                  <span className="font-mono text-stone-500 text-[11px]">CRECI {activeAgency?.creci}</span>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-stone-700 mb-1">Título do Anúncio *</label>
@@ -2844,6 +2944,183 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full text-xs px-3 py-2 border border-stone-300 rounded-lg focus:outline-emerald-600"
                 />
               </div>
+            </div>
+
+            {/* VINCULAÇÃO / CRIAÇÃO DO ADMINISTRADOR DA IMOBILIÁRIA (REQUISITO DO USUÁRIO) */}
+            <div className="pt-4 border-t border-stone-200 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Indicação, Criação e Vinculação do Administrador da Imobiliária *
+                  </label>
+                  <p className="text-[11px] text-stone-500">
+                    Defina quem terá acesso administrativo exclusivo para cadastrar e gerenciar os imóveis desta empresa.
+                  </p>
+                </div>
+
+                <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setAdminChoiceMode('existing')}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                      adminChoiceMode === 'existing'
+                        ? 'bg-white text-emerald-700 shadow-xs border border-stone-200'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    Vincular Existente na Rede
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdminChoiceMode('new')}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                      adminChoiceMode === 'new'
+                        ? 'bg-white text-emerald-700 shadow-xs border border-stone-200'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    + Criar Novo Administrador
+                  </button>
+                </div>
+              </div>
+
+              {adminChoiceMode === 'existing' ? (
+                <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Pesquisar administrador por nome, e-mail, telefone ou cargo na rede..."
+                      value={adminSearchQuery}
+                      onChange={(e) => setAdminSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-white text-xs border border-stone-300 rounded-xl focus:outline-emerald-600"
+                    />
+                  </div>
+
+                  <div className="max-h-52 overflow-y-auto divide-y divide-stone-200 bg-white border border-stone-200 rounded-xl">
+                    {users
+                      .filter((u) => {
+                        if (!adminSearchQuery.trim()) return true;
+                        const q = adminSearchQuery.toLowerCase();
+                        return (
+                          u.name.toLowerCase().includes(q) ||
+                          u.email.toLowerCase().includes(q) ||
+                          (u.phone && u.phone.includes(q)) ||
+                          u.role.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((u) => {
+                        const isSelected = selectedExistingAdminId === u.id;
+                        const userAgency = agencies.find((a) => a.id === u.agencyId);
+                        return (
+                          <div
+                            key={u.id}
+                            onClick={() => setSelectedExistingAdminId(u.id)}
+                            className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition ${
+                              isSelected ? 'bg-emerald-50/80 border-l-4 border-l-emerald-600' : 'hover:bg-stone-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                isSelected ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-700'
+                              }`}>
+                                {u.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-xs text-stone-900 truncate flex items-center gap-1.5">
+                                  <span>{u.name}</span>
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded font-normal bg-stone-100 text-stone-600 border border-stone-200">
+                                    {u.role === 'super_admin' || u.role === 'site_creator' ? 'Super Admin' : u.role === 'agency_admin' ? 'Admin Imobiliária' : 'Cliente'}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-stone-500 font-mono truncate">{u.email} {u.phone ? `• ${u.phone}` : ''}</div>
+                                {userAgency && (
+                                  <div className="text-[10px] text-emerald-700">Atualmente vinculado a: {userAgency.tradeName || userAgency.name}</div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0">
+                              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border ${
+                                isSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300 bg-white'
+                              }`}>
+                                {isSelected && <Check className="w-3.5 h-3.5 font-bold" />}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {selectedExistingAdminId ? (
+                    <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Administrador selecionado: <strong>{users.find((u) => u.id === selectedExistingAdminId)?.name}</strong> ({users.find((u) => u.id === selectedExistingAdminId)?.email})</span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-stone-500 italic">
+                      Selecione um dos usuários listados acima para vinculá-lo como administrador desta imobiliária.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Nome Completo do Administrador *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Carlos Eduardo de Oliveira"
+                        value={newAdminName}
+                        onChange={(e) => setNewAdminName(e.target.value)}
+                        className="w-full text-xs px-3 py-2 bg-white border border-stone-300 rounded-xl focus:outline-emerald-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        E-mail de Login do Administrador *
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="carlos.admin@imobiliaria.com.br"
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        className="w-full text-xs px-3 py-2 bg-white border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Senha Inicial de Acesso *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Senha inicial (ex: imobiliaria123)"
+                        value={newAdminPassword}
+                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                        className="w-full text-xs px-3 py-2 bg-white border border-stone-300 rounded-xl focus:outline-emerald-600 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Telefone / WhatsApp Direto
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="(11) 98888-7766"
+                        value={newAdminPhone}
+                        onChange={(e) => setNewAdminPhone(e.target.value)}
+                        className="w-full text-xs px-3 py-2 bg-white border border-stone-300 rounded-xl focus:outline-emerald-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Definição do Plano da Nova Imobiliária */}

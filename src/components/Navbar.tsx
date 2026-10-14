@@ -32,7 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   openSuperAdminLogin,
   openNewPropertyModal,
 }) => {
-  const { currentUser, logoutUser, agencies, currentAgency, setSelectedAgencyId, isSiteCreatorMode } = useApp();
+  const { currentUser, logoutUser, agencies, currentAgency, selectedAgencyId, setSelectedAgencyId, isSiteCreatorMode } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [agencyDropdownOpen, setAgencyDropdownOpen] = useState(false);
 
@@ -98,18 +98,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Building2 className="w-3.5 h-3.5 text-amber-400" />
                 <span className="truncate max-w-[130px] sm:max-w-[180px]">
-                  {currentAgency ? currentAgency.tradeName : 'Selecionar Imobiliária'}
+                  {selectedAgencyId === 'all' || !selectedAgencyId
+                    ? 'Todas as Imobiliárias'
+                    : currentAgency
+                    ? currentAgency.tradeName
+                    : 'Selecionar Imobiliária'}
                 </span>
                 <span className="text-[10px] text-amber-400 bg-amber-950 px-1.5 py-0.5 rounded border border-amber-800">
-                  CRECI {currentAgency?.creci}
+                  {selectedAgencyId === 'all' || !selectedAgencyId ? `${agencies.length} ativas` : `CRECI ${currentAgency?.creci}`}
                 </span>
               </button>
 
               {agencyDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-stone-900 border border-stone-700 rounded-lg shadow-xl p-2 z-50 text-xs">
+                <div className="absolute right-0 mt-2 w-64 bg-stone-900 border border-stone-700 rounded-lg shadow-xl p-2 z-50 text-xs max-h-80 overflow-y-auto">
                   <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider px-2 py-1">
                     Selecionar Imobiliária (Master)
                   </div>
+                  <button
+                    onClick={() => {
+                      setSelectedAgencyId('all');
+                      setAgencyDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 rounded flex flex-col gap-0.5 transition cursor-pointer mb-1 border-b border-stone-800 ${
+                      selectedAgencyId === 'all'
+                        ? 'bg-amber-600 text-white font-bold'
+                        : 'hover:bg-stone-800 text-amber-300'
+                    }`}
+                  >
+                    <span className="font-semibold text-xs">★ Todas as Imobiliárias (Visão Geral)</span>
+                    <span className="text-[10px] opacity-80">Visualizar imóveis de todas as {agencies.length} imobiliárias</span>
+                  </button>
                   {agencies.map((ag) => (
                     <button
                       key={ag.id}
@@ -118,7 +136,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setAgencyDropdownOpen(false);
                       }}
                       className={`w-full text-left px-2.5 py-2 rounded flex flex-col gap-0.5 transition cursor-pointer ${
-                        currentAgency?.id === ag.id
+                        selectedAgencyId === ag.id
                           ? 'bg-emerald-700 text-white'
                           : 'hover:bg-stone-800 text-stone-200'
                       }`}

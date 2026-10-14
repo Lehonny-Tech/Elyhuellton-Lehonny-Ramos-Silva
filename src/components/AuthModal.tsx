@@ -216,12 +216,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           status_assinatura: 'ACTIVE',
           subscriptionStartDate: new Date().toISOString().split('T')[0],
           subscriptionRenewalDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        }, {
+          type: 'new',
+          newAdmin: {
+            name: name.trim() || `Admin - ${regAgencyTradeName.trim() || regAgencyName.trim()}`,
+            email: email.trim().toLowerCase(),
+            password: password.trim() || 'imobiliaria123',
+            phone: phone.trim() || regAgencyWhatsApp.trim(),
+          },
         });
-
-        const targetUser = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-        if (targetUser && password.trim()) {
-          updateUserPassword(targetUser.id, password.trim());
-        }
 
         loginUserWithPassword(email.trim().toLowerCase(), password.trim() || 'imobiliaria123');
         setSuccessMsg(`Imobiliária "${created.name}" cadastrada com sucesso! Bem-vindo(a) ao portal.`);

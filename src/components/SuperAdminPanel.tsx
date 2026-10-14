@@ -40,6 +40,7 @@ import { MasterPlanManagementTab } from './MasterPlanManagementTab';
 import { ManageAgencyPlanModal } from './ManageAgencyPlanModal';
 import { SuperAdminTicketsTab } from './SuperAdminTicketsTab';
 import { InterAgencyChatTab } from './InterAgencyChatTab';
+import { AgencyAdminSelector } from './AgencyAdminSelector';
 
 interface SuperAdminPanelProps {
   onViewProperty: (property: Property) => void;
@@ -116,6 +117,13 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
   const [newAgencyCity, setNewAgencyCity] = useState('');
   const [newAgencyState, setNewAgencyState] = useState('SP');
   const [newAgencyPlano, setNewAgencyPlano] = useState<PlanType>('PROFISSIONAL');
+  const [adminChoiceMode, setAdminChoiceMode] = useState<'existing' | 'new'>('new');
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [selectedExistingAdminId, setSelectedExistingAdminId] = useState<string>('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('imobiliaria123');
+  const [newAdminPhone, setNewAdminPhone] = useState('');
 
   // Feedback toast
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -253,14 +261,31 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       return;
     }
 
+    if (adminChoiceMode === 'existing') {
+      if (!selectedExistingAdminId) {
+        triggerToast('Por favor, selecione um administrador na lista com pesquisa.');
+        return;
+      }
+    } else {
+      if (!newAdminName.trim() || !newAdminEmail.trim()) {
+        triggerToast('Por favor, informe Nome e E-mail do Administrador da imobiliária.');
+        return;
+      }
+    }
+
+    const assignedAdmin = users.find((u) => u.id === selectedExistingAdminId);
+    const assignedAdminEmail = adminChoiceMode === 'existing'
+      ? (assignedAdmin?.email || newAgencyEmail.trim().toLowerCase() || 'admin@imobiliaria.com.br')
+      : newAdminEmail.trim().toLowerCase();
+
     addAgency({
       name: newAgencyName.trim(),
       tradeName: newAgencyTradeName.trim() || newAgencyName.trim(),
       creci: newAgencyCreci.trim(),
       phone: newAgencyPhone.trim() || '(11) 3300-0000',
       whatsapp: newAgencyWhatsApp.trim() || '5511999998888',
-      email: newAgencyEmail.trim().toLowerCase() || 'contato@imobiliaria.com.br',
-      adminEmail: newAgencyEmail.trim().toLowerCase() || 'admin@imobiliaria.com.br',
+      email: newAgencyEmail.trim().toLowerCase() || assignedAdminEmail,
+      adminEmail: assignedAdminEmail,
       address: 'Endereço Comercial Central',
       city: newAgencyCity.trim() || 'São Paulo',
       state: newAgencyState.trim() || 'SP',
@@ -270,9 +295,18 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
       status_assinatura: 'ACTIVE',
       subscriptionStartDate: new Date().toISOString().split('T')[0],
       subscriptionRenewalDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    }, {
+      type: adminChoiceMode,
+      existingUserId: adminChoiceMode === 'existing' ? selectedExistingAdminId : undefined,
+      newAdmin: adminChoiceMode === 'new' ? {
+        name: newAdminName.trim(),
+        email: newAdminEmail.trim().toLowerCase(),
+        password: newAdminPassword.trim() || 'imobiliaria123',
+        phone: newAdminPhone.trim() || newAgencyWhatsApp.trim(),
+      } : undefined,
     });
 
-    triggerToast(`Nova imobiliária "${newAgencyTradeName || newAgencyName}" criada com sucesso!`);
+    triggerToast(`Nova imobiliária "${newAgencyTradeName || newAgencyName}" criada com administrador vinculado com sucesso!`);
     setIsCreateAgencyOpen(false);
     setNewAgencyName('');
     setNewAgencyTradeName('');
@@ -281,6 +315,13 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
     setNewAgencyWhatsApp('');
     setNewAgencyEmail('');
     setNewAgencyCity('');
+    setAdminChoiceMode('new');
+    setSelectedExistingAdminId('');
+    setAdminSearchQuery('');
+    setNewAdminName('');
+    setNewAdminEmail('');
+    setNewAdminPassword('imobiliaria123');
+    setNewAdminPhone('');
   };
 
   const handleOpenCreateProperty = (preselectedAgencyId?: string) => {
@@ -1665,19 +1706,20 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
 
       {/* CREATE AGENCY MODAL */}
       {isCreateAgencyOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-xl w-full overflow-hidden animate-fade-in">
-            <div className="bg-stone-900 text-white p-5 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full overflow-hidden animate-fade-in my-8 max-h-[90vh] flex flex-col">
+            <div className="bg-stone-900 text-white p-5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold">
                   <PlusCircle className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-bold text-base text-white">Cadastrar Nova Imobiliária</h3>
-                  <p className="text-xs text-stone-400">Adicionar empresa imobiliária à rede</p>
+                  <p className="text-xs text-stone-400">Adicionar empresa imobiliária à rede e vincular administrador</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsCreateAgencyOpen(false)}
                 className="text-stone-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
               >
@@ -1685,7 +1727,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleCreateAgency} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleCreateAgency} className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1">Razão Social *</label>
@@ -1771,7 +1813,27 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-stone-200">
+              {/* Administrator Linking & Creation Component */}
+              <AgencyAdminSelector
+                mode={adminChoiceMode}
+                setMode={setAdminChoiceMode}
+                users={users}
+                selectedUserId={selectedExistingAdminId}
+                onSelectUser={setSelectedExistingAdminId}
+                searchQuery={adminSearchQuery}
+                setSearchQuery={setAdminSearchQuery}
+                newAdminName={newAdminName}
+                setNewAdminName={setNewAdminName}
+                newAdminEmail={newAdminEmail}
+                setNewAdminEmail={setNewAdminEmail}
+                newAdminPassword={newAdminPassword}
+                setNewAdminPassword={setNewAdminPassword}
+                newAdminPhone={newAdminPhone}
+                setNewAdminPhone={setNewAdminPhone}
+                getAgencyById={getAgencyById}
+              />
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-stone-200 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsCreateAgencyOpen(false)}
@@ -1783,7 +1845,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                   type="submit"
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs"
                 >
-                  Criar Imobiliária
+                  Criar Imobiliária & Vincular Admin
                 </button>
               </div>
             </form>
