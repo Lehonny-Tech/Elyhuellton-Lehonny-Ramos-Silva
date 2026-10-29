@@ -364,14 +364,14 @@ const loadAllPropertiesFromStorage = (agenciesList: Agency[]): Property[] => {
       bathrooms: Number(item.bathrooms !== undefined ? item.bathrooms : item.banheiros) || 1,
       garageSpots: Number(item.garageSpots !== undefined ? item.garageSpots : item.vagas) || 0,
       usableArea: Number(item.usableArea !== undefined ? item.usableArea : item.areaUtil || item.area) || 60,
-      location: item.location || {
-        city: item.cidade || 'São Paulo',
-        state: item.estado || item.uf || 'SP',
-        neighborhood: item.bairro || 'Centro',
-        address: item.endereco || 'Rua Comercial Principal',
-        zipCode: item.cep || '01000-000',
-        lat: item.latitude || -22.855,
-        lng: item.longitude || -46.318,
+      location: {
+        city: String(item.location?.city || item.cidade || item.municipio || 'São Paulo').trim(),
+        state: String(item.location?.state || item.estado || item.uf || 'SP').trim(),
+        neighborhood: String(item.location?.neighborhood || item.bairro || 'Centro').trim(),
+        address: String(item.location?.address || item.endereco || 'Rua Comercial Principal').trim(),
+        zipCode: String(item.location?.zipCode || item.cep || '01000-000').trim(),
+        lat: Number(item.location?.lat ?? item.latitude) || -23.565,
+        lng: Number(item.location?.lng ?? item.longitude) || -46.66,
       },
       images: Array.isArray(item.images) && item.images.length > 0
         ? item.images
@@ -668,29 +668,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   });
 
-  // Sync to localStorage
+  // Sync to localStorage safely avoiding browser quota crashes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.AGENCIES, JSON.stringify(agencies));
+    safeSaveToLocalStorage(STORAGE_KEYS.AGENCIES, agencies);
   }, [agencies]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PROPERTIES, JSON.stringify(properties));
+    safeSaveToLocalStorage(STORAGE_KEYS.PROPERTIES, properties);
   }, [properties]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+    safeSaveToLocalStorage(STORAGE_KEYS.VISITS, visits);
   }, [visits]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    safeSaveToLocalStorage(STORAGE_KEYS.USERS, users);
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TICKETS, JSON.stringify(tickets));
+    safeSaveToLocalStorage(STORAGE_KEYS.TICKETS, tickets);
   }, [tickets]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.AGENCY_CHAT, JSON.stringify(agencyChatMessages));
+    safeSaveToLocalStorage(STORAGE_KEYS.AGENCY_CHAT, agencyChatMessages);
   }, [agencyChatMessages]);
 
   useEffect(() => {

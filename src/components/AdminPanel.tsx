@@ -416,7 +416,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Filtered properties for current agency in admin panel
   const adminFilteredProperties = currentAgencyProperties.filter((p) => {
-    if (filterCity !== 'todas' && p.location.city !== filterCity) return false;
+    if (filterCity !== 'todas' && p.location?.city !== filterCity) return false;
     if (filterBedrooms > 0 && p.bedrooms < filterBedrooms) return false;
     if (filterGarage > 0 && p.garageSpots < filterGarage) return false;
     if (filterCondo === 'sim' && !p.hasCondo) return false;

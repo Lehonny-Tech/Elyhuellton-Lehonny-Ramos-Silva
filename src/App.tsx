@@ -14,6 +14,7 @@ import { AuthModal } from './components/AuthModal';
 import { MortgageSimulator } from './components/MortgageSimulator';
 import { Property, FilterState } from './types';
 import { Building2, ShieldCheck, MapPin, Phone, Heart, Sparkles, RefreshCw, Calculator, Crown } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function MainAppContent() {
   const { properties, agencies, resetToDefaults, currentUser, recordUserActivity } = useApp();
@@ -330,8 +331,10 @@ function MainAppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <MainAppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <MainAppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

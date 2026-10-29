@@ -176,11 +176,12 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
 
   // Property filtering calculation
   const filteredProperties = properties.filter((p) => {
+    const q = (propSearch || '').toLowerCase();
     const matchesSearch =
-      p.title.toLowerCase().includes(propSearch.toLowerCase()) ||
-      p.code.toLowerCase().includes(propSearch.toLowerCase()) ||
-      p.location.city.toLowerCase().includes(propSearch.toLowerCase()) ||
-      p.location.neighborhood.toLowerCase().includes(propSearch.toLowerCase());
+      (p.title || '').toLowerCase().includes(q) ||
+      (p.code || '').toLowerCase().includes(q) ||
+      (p.location?.city || '').toLowerCase().includes(q) ||
+      (p.location?.neighborhood || '').toLowerCase().includes(q);
 
     const matchesAgency = propAgencyFilter === 'all' || p.agencyId === propAgencyFilter;
     const matchesType = propTypeFilter === 'all' || p.type === propTypeFilter;

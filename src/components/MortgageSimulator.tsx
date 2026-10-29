@@ -71,7 +71,7 @@ export const MortgageSimulator: React.FC<MortgageSimulatorProps> = ({
   const availableCities = useMemo(() => {
     const set = new Set<string>();
     saleProperties.forEach((p) => {
-      if (p.location.city) set.add(p.location.city);
+      if (p.location?.city) set.add(p.location.city);
     });
     return Array.from(set).sort();
   }, [saleProperties]);
@@ -81,17 +81,17 @@ export const MortgageSimulator: React.FC<MortgageSimulatorProps> = ({
     return saleProperties.filter((p) => {
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
-        const titleMatch = p.title.toLowerCase().includes(query);
-        const codeMatch = p.code.toLowerCase().includes(query);
-        const cityMatch = p.location.city.toLowerCase().includes(query);
-        const neighMatch = p.location.neighborhood.toLowerCase().includes(query);
-        const addrMatch = p.location.address?.toLowerCase().includes(query) || false;
+        const titleMatch = (p.title || '').toLowerCase().includes(query);
+        const codeMatch = (p.code || '').toLowerCase().includes(query);
+        const cityMatch = (p.location?.city || '').toLowerCase().includes(query);
+        const neighMatch = (p.location?.neighborhood || '').toLowerCase().includes(query);
+        const addrMatch = (p.location?.address || '').toLowerCase().includes(query);
         if (!titleMatch && !codeMatch && !cityMatch && !neighMatch && !addrMatch) {
           return false;
         }
       }
 
-      if (filterCity !== 'todas' && p.location.city !== filterCity) {
+      if (filterCity !== 'todas' && p.location?.city !== filterCity) {
         return false;
       }
 

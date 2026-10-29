@@ -70,8 +70,8 @@ export const GeolocatedMap: React.FC<GeolocatedMapProps> = ({
     const bounds = L.latLngBounds([]);
 
     properties.forEach((prop) => {
-      const lat = prop.location.lat;
-      const lng = prop.location.lng;
+      const lat = prop.location?.lat;
+      const lng = prop.location?.lng;
 
       if (!lat || !lng) return;
 

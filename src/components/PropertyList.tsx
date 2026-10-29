@@ -63,7 +63,7 @@ export const PropertyList: React.FC<PropertyListProps> = ({
   const availableCities = useMemo(() => {
     const set = new Set<string>();
     properties.forEach((p) => {
-      if (p.location.city) set.add(p.location.city);
+      if (p.location?.city) set.add(p.location.city);
     });
     return Array.from(set);
   }, [properties]);
@@ -81,18 +81,18 @@ export const PropertyList: React.FC<PropertyListProps> = ({
       // Search query (title, description, neighborhood, code)
       if (filters.searchQuery.trim()) {
         const query = filters.searchQuery.toLowerCase();
-        const matchesTitle = p.title.toLowerCase().includes(query);
-        const matchesDesc = p.description.toLowerCase().includes(query);
-        const matchesNeighborhood = p.location.neighborhood.toLowerCase().includes(query);
-        const matchesCity = p.location.city.toLowerCase().includes(query);
-        const matchesCode = p.code.toLowerCase().includes(query);
+        const matchesTitle = (p.title || '').toLowerCase().includes(query);
+        const matchesDesc = (p.description || '').toLowerCase().includes(query);
+        const matchesNeighborhood = (p.location?.neighborhood || '').toLowerCase().includes(query);
+        const matchesCity = (p.location?.city || '').toLowerCase().includes(query);
+        const matchesCode = (p.code || '').toLowerCase().includes(query);
         if (!matchesTitle && !matchesDesc && !matchesNeighborhood && !matchesCity && !matchesCode) {
           return false;
         }
       }
 
       // City
-      if (filters.city !== 'todas' && p.location.city !== filters.city) {
+      if (filters.city !== 'todas' && p.location?.city !== filters.city) {
         return false;
       }
 
